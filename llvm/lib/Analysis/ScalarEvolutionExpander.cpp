@@ -472,14 +472,15 @@ Value *SCEVExpander::expandAddToGEP(const SCEV *const *op_begin,
       if (const SCEVConstant *C = dyn_cast<SCEVConstant>(Ops[0]))
         if (SE.getTypeSizeInBits(C->getType()) <= 64) {
           const StructLayout &SL = *DL.getStructLayout(STy);
-          uint64_t FullOffset = C->getValue()->getZExtValue();
+          // SCEV offsets are words here; StructLayout wants bytes.
+          uint64_t FullOffset = C->getValue()->getZExtValue() * 2;
           if (FullOffset < SL.getSizeInBytes()) {
             unsigned ElIdx = SL.getElementContainingOffset(FullOffset);
             GepIndices.push_back(
                 ConstantInt::get(Type::getInt32Ty(Ty->getContext()), ElIdx));
             ElTy = STy->getTypeAtIndex(ElIdx);
             Ops[0] =
-                SE.getConstant(Ty, FullOffset - SL.getElementOffset(ElIdx));
+                SE.getConstant(Ty, (FullOffset - SL.getElementOffset(ElIdx)) / 2);
             AnyNonZeroIndices = true;
             FoundFieldNo = true;
           }

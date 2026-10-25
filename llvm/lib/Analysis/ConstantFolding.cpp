@@ -910,6 +910,9 @@ Constant *SymbolicallyEvaluateGEP(const GEPOperator *GEP,
   auto *PTy = cast<PointerType>(Ptr->getType());
   if ((Ptr->isNullValue() || BasePtr != 0) &&
       !DL.isNonIntegralPointerType(PTy)) {
+    // Word-addressed target: offsets are bytes, pointers words.
+    if (DL.getTypeAllocSize(Type::getInt8Ty(Ptr->getContext())) == 2)
+      Offset = Offset.ashr(1);
     Constant *C = ConstantInt::get(Ptr->getContext(), Offset + BasePtr);
     return ConstantExpr::getIntToPtr(C, ResTy);
   }
