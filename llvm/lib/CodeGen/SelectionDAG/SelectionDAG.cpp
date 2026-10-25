@@ -5866,7 +5866,7 @@ static void chainLoadsAndStoresForMemcpy(SelectionDAG &DAG, const SDLoc &dl,
   }
 }
 
-/// Byte offset to address offset (word-addressed targets).
+/// Convert byte offsets for Teak.
 static int64_t memAddrOffset(SelectionDAG &DAG, uint64_t ByteOff) {
   if (DAG.getTarget().getTargetTriple().getArch() == Triple::teak)
     return ByteOff >> 1;

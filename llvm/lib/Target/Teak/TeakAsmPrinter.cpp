@@ -73,8 +73,7 @@ void TeakAsmPrinter::EmitFunctionEntryLabel() {
   OutStreamer->EmitLabel(CurrentFnSym);
 }
 
-// Hardware hazard: [r7+offset] right after an r7 write
-// still uses the old r7. Insert a nop between them.
+// Separate R7 writes from offset accesses.
 static bool readsR7Offset(unsigned Opc) {
   switch (Opc) {
   case Teak::MOV_r7offset7s_a:

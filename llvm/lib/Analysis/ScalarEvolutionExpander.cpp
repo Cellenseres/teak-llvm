@@ -472,7 +472,7 @@ Value *SCEVExpander::expandAddToGEP(const SCEV *const *op_begin,
       if (const SCEVConstant *C = dyn_cast<SCEVConstant>(Ops[0]))
         if (SE.getTypeSizeInBits(C->getType()) <= 64) {
           const StructLayout &SL = *DL.getStructLayout(STy);
-          // SCEV offsets are words here; StructLayout wants bytes.
+          // Convert word offsets for StructLayout.
           uint64_t FullOffset = C->getValue()->getZExtValue() * 2;
           if (FullOffset < SL.getSizeInBytes()) {
             unsigned ElIdx = SL.getElementContainingOffset(FullOffset);
