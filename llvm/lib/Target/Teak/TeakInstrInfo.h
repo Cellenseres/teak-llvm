@@ -93,6 +93,7 @@ public:
                                     const TargetRegisterInfo *TRI) const
       override;
 
+  bool DefinesPredicate(MachineInstr &MI, std::vector<MachineOperand> &Pred) const override;
   virtual bool isPredicated(const MachineInstr &MI) const override;
   virtual bool PredicateInstruction(MachineInstr &MI, ArrayRef<MachineOperand> Pred) const override;
   virtual bool isProfitableToIfCvt(MachineBasicBlock &MBB, unsigned NumCycles, unsigned ExtraPredCycles, BranchProbability Probability) const;

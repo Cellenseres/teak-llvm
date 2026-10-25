@@ -446,6 +446,20 @@ void TeakInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
     //     .addFrameIndex(FrameIndex).addImm(0);
 }
 
+// Preserve flags during conditional execution.
+bool TeakInstrInfo::DefinesPredicate(MachineInstr &MI,
+                                    std::vector<MachineOperand> &Pred) const {
+    bool Found = false;
+    for (const MachineOperand &MO : MI.operands()) {
+        if ((MO.isRegMask() && MO.clobbersPhysReg(Teak::ICC)) ||
+            (MO.isReg() && MO.isDef() && MO.getReg() == Teak::ICC)) {
+            Pred.push_back(MO);
+            Found = true;
+        }
+    }
+    return Found;
+}
+
 bool TeakInstrInfo::isPredicated(const MachineInstr &MI) const
 {
     if (MI.isBundle())
@@ -487,14 +501,20 @@ bool TeakInstrInfo::PredicateInstruction(MachineInstr &MI, ArrayRef<MachineOpera
 
 bool TeakInstrInfo::isProfitableToIfCvt(MachineBasicBlock &MBB, unsigned NumCycles, unsigned ExtraPredCycles, BranchProbability Probability) const
 {
-    dbgs() << "isProfitableToIfCvt\n";
+    for (MachineInstr &MI : MBB) {
+        if (MI.modifiesRegister(Teak::ICC, &RI)) return false;
+    }
     return true;
 }
 
 bool TeakInstrInfo::isProfitableToIfCvt(MachineBasicBlock &TBB, unsigned TCycles, unsigned TExtra,
     MachineBasicBlock &FBB, unsigned FCycles, unsigned FExtra, BranchProbability Probability) const
 {
-    dbgs() << "isProfitableToIfCvt TF\n";
+    for (MachineBasicBlock *BB : {&TBB, &FBB}) {
+        for (MachineInstr &MI : *BB) {
+            if (MI.modifiesRegister(Teak::ICC, &RI)) return false;
+        }
+    }
     return true;
 }
 
