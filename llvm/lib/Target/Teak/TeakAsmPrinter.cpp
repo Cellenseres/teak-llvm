@@ -73,7 +73,37 @@ void TeakAsmPrinter::EmitFunctionEntryLabel() {
   OutStreamer->EmitLabel(CurrentFnSym);
 }
 
+// Hardware hazard: [r7+offset] right after an r7 write
+// still uses the old r7. Insert a nop between them.
+static bool readsR7Offset(unsigned Opc) {
+  switch (Opc) {
+  case Teak::MOV_r7offset7s_a:
+  case Teak::MOV_r7offset16_a:
+  case Teak::MOV_al_r7offset7s:
+  case Teak::MOV_al_r7offset16:
+  case Teak::OR_r7offset7s_a:
+  case Teak::OR_r7offset16_a:
+    return true;
+  default:
+    return false;
+  }
+}
+
 void TeakAsmPrinter::EmitInstruction(const MachineInstr *MI) {
+  static const MachineFunction *HazardFn = nullptr;
+  static bool LastWroteR7 = false;
+  if (HazardFn != MI->getMF()) {
+    HazardFn = MI->getMF();
+    LastWroteR7 = false;
+  }
+  if (LastWroteR7 && readsR7Offset(MI->getOpcode())) {
+    MCInst Nop;
+    Nop.setOpcode(Teak::NOP);
+    EmitToStreamer(*OutStreamer, Nop);
+  }
+  const TargetRegisterInfo *TRI = MI->getMF()->getSubtarget().getRegisterInfo();
+  LastWroteR7 = MI->modifiesRegister(Teak::R7, TRI);
+
   MCInst TmpInst;
   MCInstLowering.Lower(MI, TmpInst);
 
