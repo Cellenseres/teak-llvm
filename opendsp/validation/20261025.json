@@ -1,0 +1,46 @@
+{
+  "scope": "Isolated Windows llc relink with the changed Teak sources; unchanged pinned Linux Clang frontend emits IR. This is not yet the clean CI build.",
+  "physical_hardware": false,
+  "results": {
+    "fixed-comparisonsO2": {
+      "completed": true,
+      "comparisons": 333,
+      "errors": 0,
+      "steps": 23294,
+      "case": "comparisons",
+      "optimization": "-O2",
+      "diagnostics": [],
+      "physical_hardware": false
+    },
+    "fixed-nlsfO2": {
+      "completed": true,
+      "comparisons": 256,
+      "errors": 0,
+      "steps": 272395,
+      "case": "nlsf",
+      "optimization": "-O2",
+      "diagnostics": [],
+      "physical_hardware": false
+    },
+    "fixed-simpleO2": {
+      "completed": true,
+      "comparisons": 495,
+      "errors": 0,
+      "steps": 5595,
+      "case": "simple",
+      "optimization": "-O2",
+      "diagnostics": [],
+      "physical_hardware": false
+    },
+    "fixed-sortO2": {
+      "completed": true,
+      "comparisons": 36,
+      "errors": 0,
+      "steps": 4742,
+      "case": "sort",
+      "optimization": "-O2",
+      "diagnostics": [],
+      "physical_hardware": false
+    }
+  }
+}
