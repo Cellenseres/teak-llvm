@@ -1,0 +1,65 @@
+name: OpenDSP Teak compiler
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build tools
+        run: sudo apt-get update && sudo apt-get install -y clang lld ninja-build cmake python3 g++
+      - name: Build the compiler from this commit
+        run: sh opendsp/build.sh
+      - name: Predicate assembly regression
+        run: build/bin/llc -mtriple=teak -O2 -asm-verbose=false llvm/test/CodeGen/Teak/predicate-flags.ll -o - | build/bin/FileCheck llvm/test/CodeGen/Teak/predicate-flags.ll
+      - uses: actions/checkout@v4
+        with:
+          repository: wwylele/teakra
+          ref: 3d697a18df504f4677b65129d9ab14c7c597e3eb
+          path: inputs/teakra
+          submodules: recursive
+      - uses: actions/checkout@v4
+        with:
+          repository: xiph/opus
+          ref: 22244de5a79bd1d6d623c32e72bf1954b56235be
+          path: inputs/opus
+      - name: Build the pinned DSP emulator
+        run: |
+          cmake -S inputs/teakra -B inputs/teakra/b -G Ninja -DCMAKE_BUILD_TYPE=Release -DTEAKRA_BUILD_UNIT_TESTS=OFF -DTEAKRA_BUILD_TOOLS=OFF -DTEAKRA_WARNINGS_AS_ERRORS=OFF
+          cmake --build inputs/teakra/b --target teakra --parallel 2
+      - name: Execute compiled code against references
+        env:
+          TEAKRA: ${{ github.workspace }}/inputs/teakra
+          OPUS_SOURCE: ${{ github.workspace }}/inputs/opus
+          TEAK_CC: ${{ github.workspace }}/build/bin/clang
+          TEAK_LD: ${{ github.workspace }}/build/bin/ld.lld
+        run: |
+          python3 opendsp/tests/run.py --case simple --label ci
+          python3 opendsp/tests/run.py --case comparisons --label ci
+          python3 opendsp/tests/run.py --case sort --label ci
+          python3 opendsp/tests/run.py --case nlsf --label ci
+      - name: Preserve test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-regressions
+          path: |
+            opendsp/tests/build/*.json
+            opendsp/tests/build/*log
+            opendsp/tests/build/*.s
+      - name: Compiler binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: teak-llvm-linux
+          path: |
+            build/bin/clang
+            build/bin/ld.lld
+            build/bin/llc
+            build/bin/llvm-readelf
+            build/lib/clang/11.0.0/include
