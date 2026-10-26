@@ -9,7 +9,9 @@ permissions:
 jobs:
   build-and-test:
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 120
+    env:
+      BUILD_JOBS: 4
     steps:
       - uses: actions/checkout@v4
       - name: Build tools
@@ -44,6 +46,7 @@ jobs:
           python3 opendsp/tests/run.py --case comparisons --label ci
           python3 opendsp/tests/run.py --case sort --label ci
           python3 opendsp/tests/run.py --case nlsf --label ci
+          python3 opendsp/tests/run.py --case clz --label ci
       - name: Preserve test evidence
         if: always()
         uses: actions/upload-artifact@v4

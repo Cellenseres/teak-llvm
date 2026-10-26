@@ -1,0 +1,36 @@
+{
+  "scope": "Pinned Linux Clang frontend and isolated patched Windows llc backend; clean Linux build is separate CI",
+  "physical_hardware": false,
+  "results": {
+    "simple": {
+      "completed": true,
+      "comparisons": 495,
+      "errors": 0,
+      "steps": 5595
+    },
+    "comparisons": {
+      "completed": true,
+      "comparisons": 333,
+      "errors": 0,
+      "steps": 23294
+    },
+    "sort": {
+      "completed": true,
+      "comparisons": 36,
+      "errors": 0,
+      "steps": 4742
+    },
+    "nlsf": {
+      "completed": true,
+      "comparisons": 256,
+      "errors": 0,
+      "steps": 272395
+    },
+    "clz": {
+      "completed": true,
+      "comparisons": 642,
+      "errors": 0,
+      "steps": 66993
+    }
+  }
+}

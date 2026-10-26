@@ -101,6 +101,10 @@ TeakTargetLowering::TeakTargetLowering(const TeakTargetMachine &TeakTM)
 	setOperationAction(ISD::ADD, MVT::i16, Custom);
 	setOperationAction(ISD::SUB, MVT::i16, Custom);
 	setOperationAction(ISD::MUL, MVT::i16, Custom);
+	setOperationAction(ISD::CTLZ, MVT::i16, Custom);
+	setOperationAction(ISD::CTLZ, MVT::i40, Custom);
+	setOperationAction(ISD::CTLZ_ZERO_UNDEF, MVT::i16, Custom);
+	setOperationAction(ISD::CTLZ_ZERO_UNDEF, MVT::i40, Custom);
 	setOperationAction(ISD::AND, MVT::i16, Custom);
 	setOperationAction(ISD::AND, MVT::i40, Custom);
 	setOperationAction(ISD::XOR, MVT::i16, Custom);
@@ -449,6 +453,33 @@ SDValue TeakTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
 		//	return LowerSETCC(Op, DAG);
 		case ISD::GlobalAddress:
 			return LowerGlobalAddress(Op, DAG);
+		case ISD::CTLZ:
+		case ISD::CTLZ_ZERO_UNDEF:
+		{
+			// Use binary search for leading zeros.
+			SDLoc Location(Op);
+			EVT ValueType = Op.getValueType();
+			unsigned Width = ValueType.getSizeInBits();
+			SDValue Remaining = Op.getOperand(0);
+			SDValue Zero = DAG.getConstant(0, Location, ValueType);
+			SDValue HighestBit = Zero;
+			unsigned Step = 1;
+			while (Step * 2 < Width)
+				Step *= 2;
+			for (; Step; Step /= 2) {
+				SDValue Distance = DAG.getConstant(Step, Location, MVT::i40);
+				SDValue UpperBits = DAG.getNode(ISD::SRL, Location, ValueType, Remaining, Distance);
+				SDValue Advanced = DAG.getNode(ISD::ADD, Location, ValueType, HighestBit,
+					DAG.getConstant(Step, Location, ValueType));
+				HighestBit = DAG.getSelectCC(Location, UpperBits, Zero, Advanced, HighestBit, ISD::SETNE);
+				Remaining = DAG.getSelectCC(Location, UpperBits, Zero, UpperBits, Remaining, ISD::SETNE);
+			}
+			SDValue FinalBit = DAG.getSelectCC(Location, Remaining, Zero,
+				DAG.getConstant(1, Location, ValueType), Zero, ISD::SETNE);
+			SDValue BitCount = DAG.getNode(ISD::ADD, Location, ValueType, HighestBit, FinalBit);
+			return DAG.getNode(ISD::SUB, Location, ValueType,
+				DAG.getConstant(Width, Location, ValueType), BitCount);
+		}
 		case ISD::ADD:
 		case ISD::SUB:
 		{

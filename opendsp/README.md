@@ -36,6 +36,15 @@ hardware playback deadline.
 
 ## Build and test
 
+Leading-zero counts now use bounded binary search for 16-bit and 40-bit
+registers. Promoted 32-bit values use the same lowering. The native `clz` test
+covers zero, powers of two, nearby values and deterministic random inputs.
+No runtime helper or multiplier state is required.
+
+`--case stack` is a known-failing reproducer. The current backend cannot form
+addresses of local variables. An unmerged prototype exposed further array
+alignment and 32-bit stack-layout errors. It is not enabled in CI or production.
+
 On Ubuntu 24.04, install git, clang, lld, cmake, ninja-build, Python 3 and g++:
 
 ```sh
@@ -58,6 +67,7 @@ python3 opendsp/tests/run.py --case simple
 python3 opendsp/tests/run.py --case comparisons
 python3 opendsp/tests/run.py --case sort
 python3 opendsp/tests/run.py --case nlsf
+python3 opendsp/tests/run.py --case clz
 ```
 
 Test declaration shims are not a DSP C runtime. Generated files remain under

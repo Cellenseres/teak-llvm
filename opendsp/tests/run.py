@@ -7,7 +7,6 @@ import os
 from pathlib import Path
 import struct
 import subprocess
-import sys
 
 HERE = Path(__file__).resolve().parent
 CC = os.environ.get('TEAK_CC', 'clang')
@@ -92,15 +91,83 @@ def nlsf_case():
     return source, body, expected
 
 
+def clz_case():
+    values16 = {0, 0xffff}
+    values32 = {0, 0xffffffff}
+    values40 = {0, 0xffffffffff}
+    for width, values in [(16, values16), (32, values32), (40, values40)]:
+        mask = (1 << width)-1
+        for bit in range(width):
+            values.update([(1 << bit)-1, 1 << bit, ((1 << bit)+1) & mask])
+        state = 0x1f123bb5
+        for _ in range(128):
+            state = (state*6364136223846793005+1442695040888963407) & mask
+            values.add(state)
+    source = '''
+__attribute__((noinline)) u16 leading_zeroes(u16 low_word, u16 high_word) {
+    u32 value = ((u32)high_word << 16) | low_word;
+    return value ? __builtin_clz(value) : 32;
+}
+u16 leading_zeroes40(u16, u16, u16);
+u16 leading_zeroes16(u16);
+'''
+    inputs, body, expected = [], [], []
+    for width, values in [(16, values16), (32, values32), (40, values40)]:
+        for value in sorted(values):
+            index = len(inputs)
+            inputs.extend([(value >> shift) & 65535 for shift in [0, 16, 32]])
+            argument_count = 1 if width == 16 else 2 if width == 32 else 3
+            arguments = ','.join(f'bit_inputs[{index+i}]' for i in range(argument_count))
+            function = 'leading_zeroes' if width == 32 else f'leading_zeroes{width}'
+            body.append(f'out[n++] = {function}({arguments});')
+            expected.append(width-value.bit_length())
+    source += '\nvolatile u16 bit_inputs[] = {' + ','.join(map(str, inputs)) + '};\n'
+    return source, body, expected
+
+
+def stack_case():
+    source = '''
+__attribute__((noinline)) void change_short(s16 *value) { *value += 5; }
+__attribute__((noinline)) void change_word(u32 *value) { *value ^= 0x13579bdfu; }
+__attribute__((noinline)) s16 local_short(s16 value) {
+    s16 local_value = value;
+    change_short(&local_value);
+    return local_value;
+}
+__attribute__((noinline)) s16 local_array(s16 value) {
+    s16 local_values[7];
+    u16 index;
+    for (index=0; index<7; ++index) local_values[index] = value+index;
+    change_short(&local_values[3]);
+    return local_values[0]+local_values[3]+local_values[6];
+}
+__attribute__((noinline)) u16 local_word(u16 low_word, u16 high_word) {
+    u32 local_value = ((u32)high_word << 16) | low_word;
+    change_word(&local_value);
+    return local_value >> 16;
+}
+'''
+    body, expected = [], []
+    for index, value in enumerate(VALUES):
+        body.extend([f'out[n++] = local_short(input[{index}]);',
+                     f'out[n++] = local_array(input[{index}]);'])
+        expected.extend([value+5, 3*value+14])
+        for high_index, high_word in enumerate(VALUES):
+            body.append(f'out[n++] = local_word(input[{index}],input[{high_index}]);')
+            value32 = (((high_word & 65535) << 16) | (value & 65535)) ^ 0x13579bdf
+            expected.append(value32 >> 16)
+    return source, body, expected
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', default='-O2')
-    parser.add_argument('--no-ifcvt', action='store_true')
     parser.add_argument('--label')
-    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf'], default='comparisons')
+    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'clz', 'stack'], default='comparisons')
     args = parser.parse_args()
     BUILD.mkdir(parents=True, exist_ok=True)
-    functions, body, expected = nlsf_case() if args.case == 'nlsf' else sort_case() if args.case == 'sort' else comparisons(args.case == 'simple')
+    factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'stack': stack_case}
+    functions, body, expected = factories[args.case]() if args.case in factories else comparisons(args.case == 'simple')
     stem = args.case + args.opt.replace('-', '')
     source = BUILD / (stem + '.c')
     source.write_text('#include "kernels.h"\n#ifdef HOST_REFERENCE\n#include <stdio.h>\n#endif\n' + functions + '\nvolatile s16 input[] = {' + ','.join(map(str, VALUES)) + '};\n' +
@@ -108,14 +175,17 @@ def main():
                       f'\n#ifdef HOST_REFERENCE\nfwrite(out,2,{len(expected)},stdout);\n#else\n((volatile u16 *)0x3000)[2]=(u16)(unsigned)out;\n((volatile u16 *)0x3000)[3]={len(expected)};\n((volatile u16 *)0x3000)[0]=0x600d;\n#endif\nreturn 0; }}\n')
     flags = ['--target=teak', '-march=teak', args.opt, '-ffreestanding', '-fno-builtin', '-fno-strict-aliasing',
              '-ffunction-sections', '-fdata-sections', '-nostdlib', '-integrated-as', '-I'+str(HERE)]
-    if args.no_ifcvt:
-        flags += ['-mllvm', '-enable-if-conversion=false']
     objects = []
     for path in [HERE / 'crt0.s', source]:
         obj = BUILD / (path.stem+'.o')
         command([CC, *flags, '-c', path, '-o', obj], path.stem+'.log')
         objects.append(obj)
     command([CC, *flags, '-S', source, '-o', BUILD / (stem+'.s')], stem+'-asm.log')
+    if args.case == 'clz':
+        ir_source = HERE/'clz40.ll'
+        obj = BUILD/'clz40.o'
+        command([CC, '--target=teak', '-O2', '-c', ir_source, '-o', obj], 'clz40.log')
+        objects.append(obj)
     if args.case in ['sort', 'nlsf']:
         units = ['sort'] + (['NLSF_stabilize'] if args.case == 'nlsf' else [])
         upstream_flags = ['-DFIXED_POINT', '-DOPUS_BUILD', '-DHAVE_STDINT_H', '-DHAVE_INTTYPES_H']
@@ -140,6 +210,8 @@ def main():
     reference.write_bytes(reference_bytes if args.case == 'nlsf' else struct.pack('<'+'H'*len(expected), *[v & 65535 for v in expected]))
     result = subprocess.run([str(runner), str(elf), str(reference)], capture_output=True, text=True)
     (BUILD/(stem+'-emulate.log')).write_text(result.stdout+result.stderr)
+    if not result.stdout.strip():
+        raise RuntimeError(f'Emulation failed; see {BUILD / (stem+"-emulate.log")}')
     if args.label:
         if not args.label.replace('-', '').replace('_', '').isalnum():
             raise SystemExit('Invalid label')
