@@ -374,10 +374,15 @@ void TeakInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
     DebugLoc DL;
     if (I != MBB.end())
         DL = I->getDebugLoc();
-    if(RC->hasSuperClassEq(&Teak::ABRegsRegClass))
+    if(RC->hasSuperClassEq(&Teak::ABRegsRegClass)) {
+        MachineFunction &MF = *MBB.getParent();
         BuildMI(MBB, I, DL, get(Teak::STORE_REG_TO_STACK_PSEUDO_32))
             .addReg(SrcReg, getKillRegState(isKill))
-            .addFrameIndex(FrameIndex).addImm(0);
+            .addFrameIndex(FrameIndex).addImm(0)
+            .addMemOperand(MF.getMachineMemOperand(
+                MachinePointerInfo::getFixedStack(MF, FrameIndex),
+                MachineMemOperand::MOStore, 5, MF.getFrameInfo().getObjectAlignment(FrameIndex)));
+    }
     else
         BuildMI(MBB, I, DL, get(Teak::STORE_REG_TO_STACK_PSEUDO_16))
         .addReg(SrcReg, getKillRegState(isKill))
@@ -430,9 +435,14 @@ void TeakInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
     DebugLoc DL;
     if (I != MBB.end())
         DL = I->getDebugLoc();
-    if(RC->hasSuperClassEq(&Teak::ABRegsRegClass))
+    if(RC->hasSuperClassEq(&Teak::ABRegsRegClass)) {
+        MachineFunction &MF = *MBB.getParent();
         BuildMI(MBB, I, DL, get(Teak::LOAD_REG_FROM_STACK_PSEUDO_32_SEXT40), DestReg)
-        .addFrameIndex(FrameIndex).addImm(0);
+        .addFrameIndex(FrameIndex).addImm(0)
+        .addMemOperand(MF.getMachineMemOperand(
+            MachinePointerInfo::getFixedStack(MF, FrameIndex),
+            MachineMemOperand::MOLoad, 5, MF.getFrameInfo().getObjectAlignment(FrameIndex)));
+    }
     else
         BuildMI(MBB, I, DL, get(Teak::LOAD_REG_FROM_STACK_PSEUDO_16), DestReg)
           .addFrameIndex(FrameIndex).addImm(0);
@@ -621,6 +631,17 @@ bool TeakInstrInfo::expandPostRAPseudo(MachineInstr &MI) const
                     .addReg(MI.getOperand(1).getReg());
                 makeRnRegDisplacement(MBB, MI, DL, MI.getOperand(1).getReg(), -frameOffset + 1);
             }
+            if (MI.hasOneMemOperand() && (*MI.memoperands_begin())->getSize() == 5) {
+                // Preserve the accumulator extension byte.
+                BuildMI(MBB, MI, DL, get(Teak::PUSH_regnob16)).addReg(Teak::SV);
+                BuildMI(MBB, MI, DL, get(Teak::PUSH_abe)).addReg(teakGetAbEReg(srcReg));
+                BuildMI(MBB, MI, DL, get(Teak::POP_regnob16), Teak::SV);
+                makeRnRegDisplacement(MBB, MI, DL, Teak::R7, frameOffset - 2);
+                BuildMI(MBB, MI, DL, get(Teak::MOV_regnob16_memrn))
+                    .addReg(Teak::SV).addReg(Teak::R7);
+                makeRnRegDisplacement(MBB, MI, DL, Teak::R7, -frameOffset + 2);
+                BuildMI(MBB, MI, DL, get(Teak::POP_regnob16), Teak::SV);
+            }
             if(keepFlags)
                 BuildMI(MBB, MI, DL, get(Teak::POP_ararpsttmod), Teak::STT0);
             MBB.erase(MI);
@@ -765,6 +786,15 @@ bool TeakInstrInfo::expandPostRAPseudo(MachineInstr &MI) const
                     .addReg(Teak::A0, RegState::Define)
                     .addReg(Teak::A0)
                     .addReg(dstReg);
+            }
+            if (MI.hasOneMemOperand() && (*MI.memoperands_begin())->getSize() == 5) {
+                BuildMI(MBB, MI, DL, get(Teak::PUSH_regnob16)).addReg(Teak::SV);
+                makeRnRegDisplacement(MBB, MI, DL, Teak::R7, frameOffset - 2);
+                BuildMI(MBB, MI, DL, get(Teak::MOV_memrn_regnob16), Teak::SV).addReg(Teak::R7);
+                makeRnRegDisplacement(MBB, MI, DL, Teak::R7, -frameOffset + 2);
+                BuildMI(MBB, MI, DL, get(Teak::PUSH_regnob16)).addReg(Teak::SV);
+                BuildMI(MBB, MI, DL, get(Teak::POP_abe), teakGetAbEReg(dstReg));
+                BuildMI(MBB, MI, DL, get(Teak::POP_regnob16), Teak::SV);
             }
             if(keepFlags)
                 BuildMI(MBB, MI, DL, get(Teak::POP_ararpsttmod), Teak::STT0);

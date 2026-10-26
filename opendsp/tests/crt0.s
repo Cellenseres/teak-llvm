@@ -5,7 +5,7 @@ _start:
     dint
     mov 0x0000, mod3
     rst 0x6ce1, mod0
-    set 0x0002, mod0
+    set 0x0003, mod0
     rst 0xd0ff, mod1
     set 0x2000, mod1
     mov 0x0000, mod2

@@ -125,6 +125,70 @@ u16 leading_zeroes16(u16);
     return source, body, expected
 
 
+def silk_math_case():
+    source = '''
+void silk_sum_sqr_shift(s32 *, int *, const s16 *, int);
+void silk_bwexpander_32(s32 *, int, s32);
+s32 silk_lin2log(s32);
+s16 samples[128];
+s32 coefficients[16], energy;
+int scaling;
+'''
+    body, expected = [], []
+    coefficients = [-2147483648, -2147483647, -1073741824, -65536, -32768, -1,
+                    0, 1, 32767, 65535, 65536, 1073741823, 2147483647, 768123, -10234567, 23987654]
+    for case, length in enumerate([1, 2, 3, 8, 17, 63, 127, 128]):
+        values = [VALUES[(index+case) % len(VALUES)] for index in range(length)]
+        body.extend(f'samples[{index}]={value};' for index, value in enumerate(values))
+        body.append(f'silk_sum_sqr_shift(&energy, &scaling, samples, {length});')
+        body.extend(['out[n++]=energy;', 'out[n++]=(u32)energy >> 16;', 'out[n++]=scaling;'])
+        expected.extend([0]*3)
+        body.extend(f'coefficients[{index}]={value};' for index, value in enumerate(coefficients))
+        body.append(f'silk_bwexpander_32(coefficients, 16, {[0, 1, 16384, 32767, 32768, 65534, 65535, 65536][case]});')
+        for index in range(16):
+            body.extend([f'out[n++]=coefficients[{index}];', f'out[n++]=(u32)coefficients[{index}] >> 16;'])
+            expected.extend([0]*2)
+    for value in [0, 1, 2, 3, 15, 16, 17, 32767, 32768, 65535, 65536, 1073741823, 2147483647]:
+        body.append(f'out[n++]=silk_lin2log({value});')
+        expected.append(0)
+    return source, body, expected
+
+
+def multiply_case():
+    source = '''
+__attribute__((noinline)) u32 multiply32(u32 left, u32 right) { return left*right; }
+__attribute__((noinline)) u16 multiply16(u16 left, u16 right) { return left*right; }
+u16 multiply40(const u16 *, const u16 *, u16);
+'''
+    inputs, body, expected = [], [], []
+    values = [0, 1, 2, 0x7fff, 0x8000, 0xffff, 0x10000, 0x7fffffff,
+              0x80000000, 0xffffffff, 0x100000000, 0x7fffffffff,
+              0x8000000000, 0xffffffffff]
+    pairs = [(left, right) for left in values for right in values]
+    state = 0x17abc985
+    for _ in range(96):
+        state = (state*6364136223846793005+1442695040888963407) & 0xffffffffff
+        left = state
+        state = (state*6364136223846793005+1442695040888963407) & 0xffffffffff
+        pairs.append((left, state))
+    for left, right in pairs:
+        index = len(inputs)
+        inputs.extend([(value >> shift) & 65535 for value in [left, right] for shift in [0, 16, 32]])
+        body.append(f'out[n++] = multiply16(multiply_inputs[{index}], multiply_inputs[{index+3}]);')
+        expected.append((left*right) & 65535)
+        body.append(f'product = multiply32(((u32)multiply_inputs[{index+1}] << 16) | multiply_inputs[{index}], '
+                    f'((u32)multiply_inputs[{index+4}] << 16) | multiply_inputs[{index+3}]);')
+        body.extend(['out[n++] = product;', 'out[n++] = product >> 16;'])
+        expected.extend([((left & 0xffffffff)*(right & 0xffffffff) >> shift) & 65535 for shift in [0, 16]])
+        for shift in [0, 16, 32]:
+            body.append(f'out[n++] = multiply40((const u16 *)multiply_inputs+{index}, '
+                        f'(const u16 *)multiply_inputs+{index+3}, {shift});')
+            expected.append((((left*right) & 0xffffffffff) >> shift) & 65535)
+    source += '\nvolatile u16 multiply_inputs[] = {' + ','.join(map(str, inputs)) + '};\n'
+    body.insert(0, 'u32 product;')
+    return source, body, expected
+
+
 def stack_case():
     source = '''
 __attribute__((noinline)) void change_short(s16 *value) { *value += 5; }
@@ -163,10 +227,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', default='-O2')
     parser.add_argument('--label')
-    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'clz', 'stack'], default='comparisons')
+    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack'], default='comparisons')
     args = parser.parse_args()
     BUILD.mkdir(parents=True, exist_ok=True)
-    factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'stack': stack_case}
+    factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case}
     functions, body, expected = factories[args.case]() if args.case in factories else comparisons(args.case == 'simple')
     stem = args.case + args.opt.replace('-', '')
     source = BUILD / (stem + '.c')
@@ -181,20 +245,20 @@ def main():
         command([CC, *flags, '-c', path, '-o', obj], path.stem+'.log')
         objects.append(obj)
     command([CC, *flags, '-S', source, '-o', BUILD / (stem+'.s')], stem+'-asm.log')
-    if args.case == 'clz':
-        ir_source = HERE/'clz40.ll'
-        obj = BUILD/'clz40.o'
-        command([CC, '--target=teak', '-O2', '-c', ir_source, '-o', obj], 'clz40.log')
+    if args.case in ['clz', 'multiply']:
+        ir_source = HERE/('clz40.ll' if args.case == 'clz' else 'multiply40.ll')
+        obj = BUILD/(ir_source.stem+'.o')
+        command([CC, '--target=teak', '-O2', '-c', ir_source, '-o', obj], ir_source.stem+'.log')
         objects.append(obj)
-    if args.case in ['sort', 'nlsf']:
-        units = ['sort'] + (['NLSF_stabilize'] if args.case == 'nlsf' else [])
+    if args.case in ['sort', 'nlsf', 'silk_math']:
+        units = ['sum_sqr_shift', 'bwexpander_32', 'lin2log'] if args.case == 'silk_math' else ['sort'] + (['NLSF_stabilize'] if args.case == 'nlsf' else [])
         upstream_flags = ['-DFIXED_POINT', '-DOPUS_BUILD', '-DHAVE_STDINT_H', '-DHAVE_INTTYPES_H']
         includes = ['-I'+str(HERE/'include'), *['-I'+str(OPUS/p) for p in ['include','celt','silk','.']]]
         for name in units:
             obj = BUILD / (name+'.o')
             command([CC, *flags, *upstream_flags, *includes, '-c', OPUS/'silk'/(name+'.c'), '-o', obj], name+'.log')
             objects.append(obj)
-        if args.case == 'nlsf':
+        if args.case in ['nlsf', 'silk_math']:
             host = BUILD/'host-reference'
             command(['cc', '-O2', '-fwrapv', '-DHOST_REFERENCE', '-I'+str(HERE), *upstream_flags,
                      *['-I'+str(OPUS/p) for p in ['include','celt','silk','.']], source,
@@ -207,7 +271,7 @@ def main():
         command(['g++', '-O2', '-std=c++17', '-I'+str(TEAKRA/'include'), HERE/'runner.cpp',
                  TEAKRA/'b/src/libteakra.a', '-o', runner], 'runner.log')
     reference = BUILD/(stem+'.pcm')
-    reference.write_bytes(reference_bytes if args.case == 'nlsf' else struct.pack('<'+'H'*len(expected), *[v & 65535 for v in expected]))
+    reference.write_bytes(reference_bytes if args.case in ['nlsf', 'silk_math'] else struct.pack('<'+'H'*len(expected), *[v & 65535 for v in expected]))
     result = subprocess.run([str(runner), str(elf), str(reference)], capture_output=True, text=True)
     (BUILD/(stem+'-emulate.log')).write_text(result.stdout+result.stderr)
     if not result.stdout.strip():

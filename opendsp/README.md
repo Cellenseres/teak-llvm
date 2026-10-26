@@ -41,6 +41,21 @@ registers. Promoted 32-bit values use the same lowering. The native `clz` test
 covers zero, powers of two, nearby values and deterministic random inputs.
 No runtime helper or multiplier state is required.
 
+Wide multiplication uses six signed 15-bit partial products. The native test
+checks 1,752 result words across 16-, 32- and 40-bit boundary/random inputs.
+Accumulator spills now preserve all 40 bits, including the extension byte.
+Keeping the old spills produces 160 wrong words with the same unsaturated
+startup. Narrowed loads are disabled because their byte offsets address the
+wrong DSP word. The upstream energy, bandwidth-expansion and linear-log tests
+then match all 293 host-reference words; previously seven shift values differed.
+
+The standalone C tests disable both arithmetic and move saturation in MOD0.
+With move saturation enabled, intermediate values above signed 32-bit range
+are clamped during transfers. This is a required execution mode for these wide
+integer tests, not a change to OpenDSP's firmware startup. Multiplier tests run
+with interrupts masked. A production decoder must protect P0/Y0 and restore
+the caller's arithmetic mode while sharing the DSP with the renderer.
+
 `--case stack` is a known-failing reproducer. The current backend cannot form
 addresses of local variables. An unmerged prototype exposed further array
 alignment and 32-bit stack-layout errors. It is not enabled in CI or production.
@@ -68,6 +83,8 @@ python3 opendsp/tests/run.py --case comparisons
 python3 opendsp/tests/run.py --case sort
 python3 opendsp/tests/run.py --case nlsf
 python3 opendsp/tests/run.py --case clz
+python3 opendsp/tests/run.py --case multiply
+python3 opendsp/tests/run.py --case silk_math
 ```
 
 Test declaration shims are not a DSP C runtime. Generated files remain under

@@ -101,6 +101,7 @@ TeakTargetLowering::TeakTargetLowering(const TeakTargetMachine &TeakTM)
 	setOperationAction(ISD::ADD, MVT::i16, Custom);
 	setOperationAction(ISD::SUB, MVT::i16, Custom);
 	setOperationAction(ISD::MUL, MVT::i16, Custom);
+	setOperationAction(ISD::MUL, MVT::i40, Custom);
 	setOperationAction(ISD::CTLZ, MVT::i16, Custom);
 	setOperationAction(ISD::CTLZ, MVT::i40, Custom);
 	setOperationAction(ISD::CTLZ_ZERO_UNDEF, MVT::i16, Custom);
@@ -287,9 +288,8 @@ bool TeakTargetLowering::allowsMemoryAccess(LLVMContext &Context, const DataLayo
 
 bool TeakTargetLowering::shouldReduceLoadWidth(SDNode* Load, ISD::LoadExtType ExtTy, EVT NewVT) const
 {
-	if(NewVT.getSizeInBits() == 8)
-		return false;
-	return TargetLowering::shouldReduceLoadWidth(Load, ExtTy, NewVT);
+	// Narrowing computes byte-addressed subword offsets.
+	return false;
 }
 
 
@@ -527,6 +527,31 @@ SDValue TeakTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
 		{
 			const SDNode *N = Op.getNode();
 			SDLoc dl(N);
+			if (N->getValueType(0) == MVT::i40) {
+				// Keep signed multiplier inputs positive.
+				SDValue Left[3], Right[3];
+				SDValue Mask = DAG.getConstant(0x7fff, dl, MVT::i40);
+				for (unsigned Index = 0; Index < 3; ++Index) {
+					SDValue Shift = DAG.getConstant(Index * 15, dl, MVT::i40);
+					Left[Index] = DAG.getNode(ISD::TRUNCATE, dl, MVT::i16,
+						DAG.getNode(ISD::AND, dl, MVT::i40,
+							DAG.getNode(ISD::SRL, dl, MVT::i40, N->getOperand(0), Shift), Mask));
+					Right[Index] = DAG.getNode(ISD::TRUNCATE, dl, MVT::i16,
+						DAG.getNode(ISD::AND, dl, MVT::i40,
+							DAG.getNode(ISD::SRL, dl, MVT::i40, N->getOperand(1), Shift), Mask));
+				}
+				SDValue Result = DAG.getConstant(0, dl, MVT::i40);
+				for (unsigned Column = 0; Column < 3; ++Column) {
+					SDValue Partial = DAG.getConstant(0, dl, MVT::i40);
+					for (unsigned Index = 0; Index <= Column; ++Index)
+						Partial = DAG.getNode(ISD::ADD, dl, MVT::i40, Partial,
+							DAG.getNode(TeakISD::MPY, dl, MVT::i40, Left[Index], Right[Column - Index]));
+					Result = DAG.getNode(ISD::ADD, dl, MVT::i40, Result,
+						DAG.getNode(ISD::SHL, dl, MVT::i40, Partial,
+							DAG.getConstant(Column * 15, dl, MVT::i40)));
+				}
+				return Result;
+			}
 			assert(N->getValueType(0) == MVT::i16 && "Unexpected custom legalisation");
 			return DAG.getNode(ISD::TRUNCATE, dl, MVT::i16, DAG.getNode(TeakISD::MPY, dl, MVT::i40, N->getOperand(0), N->getOperand(1)));
 		}
