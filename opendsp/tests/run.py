@@ -196,7 +196,33 @@ __attribute__((noinline)) u16 local_initializer(u16 index) {
     return local_values[index];
 }
 '''
-    return source, [f'out[n++]=local_initializer({index});' for index in range(3)], [0x1234, 0x2345, 0x3456]
+    body = [f'out[n++]=local_initializer({index});' for index in range(3)]
+    expected = [0x1234, 0x2345, 0x3456]
+    source += '\nu16 word_source[16], word_destination[16];\n'
+    for count in [1, 2, 3, 4, 7, 8, 12]:
+        source += f'__attribute__((noinline)) void copy{count}(u16 *destination, const u16 *input) {{ __builtin_memcpy(destination, input, {count*2}); }}\n'
+        values = [(index*19317+count*8191) & 65535 for index in range(16)]
+        body.extend(f'word_source[{index}]={value}; word_destination[{index}]=0x7878;' for index, value in enumerate(values))
+        body.append(f'copy{count}(word_destination+2, word_source+1);')
+        body.extend(f'out[n++]=word_destination[{index}];' for index in range(16))
+        expected.extend([0x7878]*2+values[1:count+1]+[0x7878]*(14-count))
+    source += '''
+__attribute__((noinline)) void fill7(u16 *destination) { __builtin_memset(destination, 0xa5, 14); }
+__attribute__((noinline)) void move7(u16 *destination, const u16 *input) { __builtin_memmove(destination, input, 14); }
+'''
+    body.extend(f'word_destination[{index}]=0x7878;' for index in range(16))
+    body.append('fill7(word_destination+2);')
+    body.extend(f'out[n++]=word_destination[{index}];' for index in range(16))
+    expected.extend([0x7878]*2+[0xa5a5]*7+[0x7878]*7)
+    for offset in [1, -1]:
+        values = [(index*7919+1023) & 65535 for index in range(16)]
+        body.extend(f'word_destination[{index}]={value};' for index, value in enumerate(values))
+        destination, origin = (3, 2) if offset > 0 else (2, 3)
+        body.append(f'move7(word_destination+{destination}, word_destination+{origin});')
+        body.extend(f'out[n++]=word_destination[{index}];' for index in range(16))
+        values[destination:destination+7] = values[origin:origin+7]
+        expected.extend(values)
+    return source, body, expected
 
 
 def stack_case():
@@ -273,6 +299,8 @@ def main():
                       f'\n#ifdef HOST_REFERENCE\nfwrite(out,2,{len(expected)},stdout);\n#else\n((volatile u16 *)0x3000)[2]=(u16)(unsigned)out;\n((volatile u16 *)0x3000)[3]={len(expected)};\n((volatile u16 *)0x3000)[0]=0x600d;\n#endif\nreturn 0; }}\n')
     flags = ['--target=teak', '-march=teak', args.opt, '-ffreestanding', '-fno-builtin', '-fno-strict-aliasing',
              '-ffunction-sections', '-fdata-sections', '-nostdlib', '-integrated-as', '-I'+str(HERE)]
+    upstream_flags = ['-DFIXED_POINT', '-DOPUS_BUILD', '-DHAVE_STDINT_H', '-DHAVE_INTTYPES_H']
+    includes = ['-I'+str(HERE/'include'), *['-I'+str(OPUS/p) for p in ['include','celt','silk','.']]]
     objects = []
     for path in [HERE / 'crt0.s', source]:
         obj = BUILD / (path.stem+'.o')
@@ -286,17 +314,17 @@ def main():
         objects.append(obj)
     if args.case in ['sort', 'nlsf', 'silk_math']:
         units = ['sum_sqr_shift', 'bwexpander_32', 'lin2log'] if args.case == 'silk_math' else ['sort'] + (['NLSF_stabilize'] if args.case == 'nlsf' else [])
-        upstream_flags = ['-DFIXED_POINT', '-DOPUS_BUILD', '-DHAVE_STDINT_H', '-DHAVE_INTTYPES_H']
-        includes = ['-I'+str(HERE/'include'), *['-I'+str(OPUS/p) for p in ['include','celt','silk','.']]]
+        directory = OPUS/'silk'
         for name in units:
             obj = BUILD / (name+'.o')
-            command([CC, *flags, *upstream_flags, *includes, '-c', OPUS/'silk'/(name+'.c'), '-o', obj], name+'.log')
+            command([CC, *flags, *upstream_flags, *includes, '-c', directory/(name+'.c'), '-o', obj], name+'.log')
             objects.append(obj)
         if args.case in ['nlsf', 'silk_math']:
             host = BUILD/'host-reference'
             command(['cc', '-O2', '-fwrapv', '-DHOST_REFERENCE', '-I'+str(HERE), *upstream_flags,
                      *['-I'+str(OPUS/p) for p in ['include','celt','silk','.']], source,
-                     *[OPUS/'silk'/(name+'.c') for name in units], '-o', host], 'host.log')
+                     *[directory/(name+'.c') for name in units], '-ffunction-sections', '-fdata-sections',
+                     '-Wl,--gc-sections', '-lm', '-o', host], 'host.log')
             reference_bytes = subprocess.check_output([host])
     elf, cdc = BUILD/(stem+'.elf'), BUILD/(stem+'.cdc')
     command([LD, '--gc-sections', '-T', HERE/'link.ld', *objects, '-o', elf], 'link.log')

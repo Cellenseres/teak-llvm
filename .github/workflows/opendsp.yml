@@ -17,6 +17,7 @@ jobs:
       - name: Build tools
         run: sudo apt-get update && sudo apt-get install -y clang lld ninja-build cmake python3 g++
       - name: Build the compiler from this commit
+        id: compiler
         run: sh opendsp/build.sh
       - name: Predicate assembly regression
         run: build/bin/llc -mtriple=teak -O2 -asm-verbose=false llvm/test/CodeGen/Teak/predicate-flags.ll -o - | build/bin/FileCheck llvm/test/CodeGen/Teak/predicate-flags.ll
@@ -50,6 +51,7 @@ jobs:
           python3 opendsp/tests/run.py --case multiply --label ci
           python3 opendsp/tests/run.py --case silk_math --label ci
           python3 opendsp/tests/run.py --case stack --label ci
+          python3 opendsp/tests/run.py --case bulk --label ci
       - name: Preserve test evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -60,6 +62,7 @@ jobs:
             opendsp/tests/build/*log
             opendsp/tests/build/*.s
       - name: Compiler binaries
+        if: ${{ !cancelled() && steps.compiler.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: teak-llvm-linux

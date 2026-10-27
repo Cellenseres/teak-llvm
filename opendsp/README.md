@@ -61,9 +61,17 @@ memory instructions access locals in the same word order as globals; compiler
 spills retain their private format. Frame-index analysis no longer treats byte
 alignment as word alignment. The `stack` regression checks 747 words covering
 scalar addresses, arrays, full 32-bit updates and neighboring volatile guards.
-Bulk initialization and byte-memory intrinsics remain separate compiler gaps.
-`--case bulk` reproduces the failing automatic array initializer and is
-excluded from the passing CI suite.
+Aligned, even-sized memory intrinsics use native words. The `bulk` regression
+checks 163 words covering automatic initialization, copying, filling, overlap
+in both directions and neighboring guards. Unaligned 32-bit accesses and
+64-bit memory transfers also use explicit word addresses. General 64-bit
+arithmetic and packed byte-memory operations remain separate requirements.
+
+The missing `i40` to IR-type conversion is repaired. A clean Clang build exposed
+this when its SLP cost analysis visited the native CLZ IR test; the split local
+frontend/llc path did not run that optimizer. CI continues testing the full
+Clang path, and retains compiler binaries after a successful build even when
+a later regression fails.
 
 On Ubuntu 24.04, install git, clang, lld, cmake, ninja-build, Python 3 and g++:
 
@@ -91,6 +99,7 @@ python3 opendsp/tests/run.py --case clz
 python3 opendsp/tests/run.py --case multiply
 python3 opendsp/tests/run.py --case silk_math
 python3 opendsp/tests/run.py --case stack
+python3 opendsp/tests/run.py --case bulk
 ```
 
 Test declaration shims are not a DSP C runtime. Generated files remain under
