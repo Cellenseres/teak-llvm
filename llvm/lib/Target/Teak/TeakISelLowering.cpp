@@ -239,6 +239,12 @@ TeakTargetLowering::TeakTargetLowering(const TeakTargetMachine &TeakTM)
 // 	return DAG.getNode(AVRISD::SELECT_CC, DL, VTs, Ops);
 // }
 
+void TeakTargetLowering::computeKnownBitsForFrameIndex(
+    SDValue FIOp, KnownBits &Known, const APInt &DemandedElts,
+    const SelectionDAG &DAG, unsigned Depth) const {
+	// Byte alignment cannot constrain word addresses.
+}
+
 bool TeakTargetLowering::isNarrowingProfitable(EVT VT1, EVT VT2) const
 {
   	return VT2 != MVT::i8 && VT2 != MVT::i1;

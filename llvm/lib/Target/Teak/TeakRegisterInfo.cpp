@@ -146,6 +146,14 @@ void TeakRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     MachineOperand &FIOp = MI.getOperand(FIOperandNum);
     unsigned FI = FIOp.getIndex();
 
+    if (MI.getOpcode() == Teak::ADDV_imm16_RegNoBRegs16) {
+        // Local objects grow toward higher addresses.
+        int Offset = MFI.getObjectOffset(FI) + MFI.getStackSize();
+        int ObjectWords = (MFI.getObjectSize(FI) + 1) / 2;
+        FIOp.ChangeToImmediate(-(Offset >> 1) - ObjectWords);
+        return;
+    }
+
     // Determine if we can eliminate the index from this kind of instruction.
     unsigned ImmOpIdx = 0;
     switch (MI.getOpcode()) {

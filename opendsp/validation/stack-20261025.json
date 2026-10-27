@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-25",
+  "build": "isolated llc with pinned Linux Clang frontend",
+  "physical_hardware": false,
+  "interrupts_masked": true,
+  "arithmetic_saturation": false,
+  "move_saturation": false,
+  "comparisons": 4554,
+  "errors": 0,
+  "cases": [
+    {
+      "case": "simple",
+      "completed": true,
+      "comparisons": 495,
+      "errors": 0,
+      "steps": 5595
+    },
+    {
+      "case": "comparisons",
+      "completed": true,
+      "comparisons": 333,
+      "errors": 0,
+      "steps": 40142
+    },
+    {
+      "case": "sort",
+      "completed": true,
+      "comparisons": 36,
+      "errors": 0,
+      "steps": 8578
+    },
+    {
+      "case": "nlsf",
+      "completed": true,
+      "comparisons": 256,
+      "errors": 0,
+      "steps": 516700
+    },
+    {
+      "case": "clz",
+      "completed": true,
+      "comparisons": 642,
+      "errors": 0,
+      "steps": 87313
+    },
+    {
+      "case": "multiply",
+      "completed": true,
+      "comparisons": 1752,
+      "errors": 0,
+      "steps": 199471
+    },
+    {
+      "case": "silk_math",
+      "completed": true,
+      "comparisons": 293,
+      "errors": 0,
+      "steps": 163438
+    },
+    {
+      "case": "stack",
+      "completed": true,
+      "comparisons": 747,
+      "errors": 0,
+      "steps": 11753
+    }
+  ],
+  "known_failures": [
+    {
+      "case": "bulk",
+      "stage": "compile",
+      "diagnostic": "EVT::getTypeForEVT lacks i40 conversion; native memory-copy lowering remains incomplete"
+    }
+  ]
+}

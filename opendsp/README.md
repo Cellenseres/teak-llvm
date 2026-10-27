@@ -56,9 +56,14 @@ integer tests, not a change to OpenDSP's firmware startup. Multiplier tests run
 with interrupts masked. A production decoder must protect P0/Y0 and restore
 the caller's arithmetic mode while sharing the DSP with the renderer.
 
-`--case stack` is a known-failing reproducer. The current backend cannot form
-addresses of local variables. An unmerged prototype exposed further array
-alignment and 32-bit stack-layout errors. It is not enabled in CI or production.
+Local addresses now reference the lowest word of each frame object. Ordinary
+memory instructions access locals in the same word order as globals; compiler
+spills retain their private format. Frame-index analysis no longer treats byte
+alignment as word alignment. The `stack` regression checks 747 words covering
+scalar addresses, arrays, full 32-bit updates and neighboring volatile guards.
+Bulk initialization and byte-memory intrinsics remain separate compiler gaps.
+`--case bulk` reproduces the failing automatic array initializer and is
+excluded from the passing CI suite.
 
 On Ubuntu 24.04, install git, clang, lld, cmake, ninja-build, Python 3 and g++:
 
@@ -85,6 +90,7 @@ python3 opendsp/tests/run.py --case nlsf
 python3 opendsp/tests/run.py --case clz
 python3 opendsp/tests/run.py --case multiply
 python3 opendsp/tests/run.py --case silk_math
+python3 opendsp/tests/run.py --case stack
 ```
 
 Test declaration shims are not a DSP C runtime. Generated files remain under

@@ -189,6 +189,16 @@ u16 multiply40(const u16 *, const u16 *, u16);
     return source, body, expected
 
 
+def bulk_case():
+    source = '''
+__attribute__((noinline)) u16 local_initializer(u16 index) {
+    volatile u16 local_values[3] = {0x1234, 0x2345, 0x3456};
+    return local_values[index];
+}
+'''
+    return source, [f'out[n++]=local_initializer({index});' for index in range(3)], [0x1234, 0x2345, 0x3456]
+
+
 def stack_case():
     source = '''
 __attribute__((noinline)) void change_short(s16 *value) { *value += 5; }
@@ -205,21 +215,45 @@ __attribute__((noinline)) s16 local_array(s16 value) {
     change_short(&local_values[3]);
     return local_values[0]+local_values[3]+local_values[6];
 }
-__attribute__((noinline)) u16 local_word(u16 low_word, u16 high_word) {
+__attribute__((noinline)) u32 local_word(u16 low_word, u16 high_word) {
     u32 local_value = ((u32)high_word << 16) | low_word;
     change_word(&local_value);
-    return local_value >> 16;
+    return local_value;
+}
+__attribute__((noinline)) void local_mixed(u16 *result, u16 low_word, u16 high_word) {
+    volatile s16 guards[3];
+    u32 local_values[2];
+    guards[0] = 0x1234;
+    guards[1] = 0x2345;
+    guards[2] = 0x3456;
+    local_values[0] = ((u32)high_word << 16) | low_word;
+    local_values[1] = ~local_values[0];
+    change_word(&local_values[1]);
+    change_short((s16 *)&guards[1]);
+    result[0] = guards[0];
+    result[1] = guards[1];
+    result[2] = guards[2];
+    result[3] = local_values[0];
+    result[4] = local_values[0] >> 16;
+    result[5] = local_values[1];
+    result[6] = local_values[1] >> 16;
 }
 '''
-    body, expected = [], []
+    body, expected = ['u32 product;'], []
     for index, value in enumerate(VALUES):
         body.extend([f'out[n++] = local_short(input[{index}]);',
                      f'out[n++] = local_array(input[{index}]);'])
         expected.extend([value+5, 3*value+14])
         for high_index, high_word in enumerate(VALUES):
-            body.append(f'out[n++] = local_word(input[{index}],input[{high_index}]);')
+            body.append(f'product = local_word(input[{index}],input[{high_index}]);')
+            body.extend(['out[n++] = product;', 'out[n++] = product >> 16;'])
             value32 = (((high_word & 65535) << 16) | (value & 65535)) ^ 0x13579bdf
-            expected.append(value32 >> 16)
+            expected.extend([value32 & 65535, value32 >> 16])
+            body.append(f'local_mixed(out+n, input[{index}],input[{high_index}]); n+=7;')
+            original = ((high_word & 65535) << 16) | (value & 65535)
+            changed = ((~original) & 0xffffffff) ^ 0x13579bdf
+            expected.extend([0x1234, 0x234a, 0x3456, original & 65535,
+                             original >> 16, changed & 65535, changed >> 16])
     return source, body, expected
 
 
@@ -227,10 +261,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', default='-O2')
     parser.add_argument('--label')
-    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack'], default='comparisons')
+    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk'], default='comparisons')
     args = parser.parse_args()
     BUILD.mkdir(parents=True, exist_ok=True)
-    factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case}
+    factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case}
     functions, body, expected = factories[args.case]() if args.case in factories else comparisons(args.case == 'simple')
     stem = args.case + args.opt.replace('-', '')
     source = BUILD / (stem + '.c')

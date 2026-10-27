@@ -63,6 +63,11 @@ public:
 
   bool shouldReduceLoadWidth(SDNode* Load, ISD::LoadExtType ExtTy, EVT NewVT) const override;
 
+  void computeKnownBitsForFrameIndex(SDValue FIOp, KnownBits &Known,
+                                    const APInt &DemandedElts,
+                                    const SelectionDAG &DAG,
+                                    unsigned Depth = 0) const override;
+
   bool isNarrowingProfitable(EVT VT1, EVT VT2) const override;
 
   bool getPostIndexedAddressParts(SDNode* N, SDNode* Op, SDValue &Base,

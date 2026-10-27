@@ -59,13 +59,7 @@ namespace
 bool TeakDAGToDAGISel::SelectAddr(SDValue Addr, SDValue &Base, SDValue& Offset)
 {
     dbgs() << "TeakDAGToDAGISel::SelectAddr: " << Addr.getOpcode() << "\n";
-    if (FrameIndexSDNode *FIN = dyn_cast<FrameIndexSDNode>(Addr))
-    {
-        EVT PtrVT = getTargetLowering()->getPointerTy(CurDAG->getDataLayout());
-        Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), PtrVT);
-        Offset = CurDAG->getTargetConstant(0, Addr, MVT::i16);
-        return true;
-    }
+    // Locals share the regular memory layout.
     return false;
     // if (Addr.getOpcode() == ISD::TargetExternalSymbol ||
     //     Addr.getOpcode() == ISD::TargetGlobalAddress ||
@@ -161,6 +155,16 @@ void TeakDAGToDAGISel::Select(SDNode* N)
 {
     switch (N->getOpcode())
     {
+        case ISD::FrameIndex: {
+            SDLoc Location(N);
+            int Index = cast<FrameIndexSDNode>(N)->getIndex();
+            SDValue Frame = CurDAG->getTargetFrameIndex(Index, MVT::i16);
+            SDValue FrameRegister = CurDAG->getCopyFromReg(
+                CurDAG->getEntryNode(), Location, Teak::R7, MVT::i16);
+            CurDAG->SelectNodeTo(N, Teak::ADDV_imm16_RegNoBRegs16,
+                                MVT::i16, Frame, FrameRegister);
+            return;
+        }
      	case ISD::LOAD:
           	if(SelectLoad(N))
 				return;
