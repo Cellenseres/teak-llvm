@@ -63,6 +63,10 @@ public:
 
   bool shouldReduceLoadWidth(SDNode* Load, ISD::LoadExtType ExtTy, EVT NewVT) const override;
 
+  EVT getOptimalMemOpType(uint64_t Size, unsigned DstAlign, unsigned SrcAlign,
+                         bool IsMemset, bool ZeroMemset, bool MemcpyStrSrc,
+                         const AttributeList &FuncAttributes) const override;
+
   void computeKnownBitsForFrameIndex(SDValue FIOp, KnownBits &Known,
                                     const APInt &DemandedElts,
                                     const SelectionDAG &DAG,

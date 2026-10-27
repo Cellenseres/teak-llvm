@@ -102,6 +102,8 @@ TeakTargetLowering::TeakTargetLowering(const TeakTargetMachine &TeakTM)
 	setOperationAction(ISD::SUB, MVT::i16, Custom);
 	setOperationAction(ISD::MUL, MVT::i16, Custom);
 	setOperationAction(ISD::MUL, MVT::i40, Custom);
+	setOperationAction(ISD::LOAD, MVT::i64, Custom);
+	setOperationAction(ISD::STORE, MVT::i64, Custom);
 	setOperationAction(ISD::CTLZ, MVT::i16, Custom);
 	setOperationAction(ISD::CTLZ, MVT::i40, Custom);
 	setOperationAction(ISD::CTLZ_ZERO_UNDEF, MVT::i16, Custom);
@@ -197,7 +199,10 @@ TeakTargetLowering::TeakTargetLowering(const TeakTargetMachine &TeakTM)
 	// setOperationAction(ISD::CopyFromReg, MVT::i32,  Custom);
 	// setOperationAction(ISD::CopyToReg, MVT::i40,  Expand);
 
-	setLoadExtAction(ISD::ZEXTLOAD, MVT::i40, MVT::i32, Expand);
+	setLoadExtAction(ISD::EXTLOAD, MVT::i40, MVT::i32, Custom);
+	setLoadExtAction(ISD::SEXTLOAD, MVT::i40, MVT::i32, Custom);
+	setLoadExtAction(ISD::ZEXTLOAD, MVT::i40, MVT::i32, Custom);
+	setTruncStoreAction(MVT::i40, MVT::i32, Custom);
 
 	setLoadExtAction(ISD::EXTLOAD, MVT::i16, MVT::i1, Promote);
 	setLoadExtAction(ISD::EXTLOAD, MVT::i40, MVT::i1, Promote);
@@ -238,6 +243,15 @@ TeakTargetLowering::TeakTargetLowering(const TeakTargetMachine &TeakTM)
 
 // 	return DAG.getNode(AVRISD::SELECT_CC, DL, VTs, Ops);
 // }
+
+EVT TeakTargetLowering::getOptimalMemOpType(
+    uint64_t Size, unsigned DstAlign, unsigned SrcAlign, bool IsMemset,
+    bool ZeroMemset, bool MemcpyStrSrc, const AttributeList &FuncAttributes) const {
+	// Prefer paired transfers for larger copies.
+	return Size % 2 == 0 && (DstAlign == 0 || DstAlign >= 2) &&
+		(IsMemset || SrcAlign == 0 || SrcAlign >= 2)
+		? (Size >= 4 ? MVT::i32 : MVT::i16) : MVT::Other;
+}
 
 void TeakTargetLowering::computeKnownBitsForFrameIndex(
     SDValue FIOp, KnownBits &Known, const APInt &DemandedElts,
@@ -447,6 +461,48 @@ SDValue TeakTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
 	// Op.dump(&DAG);
 	switch (Op.getOpcode()) 
 	{
+		case ISD::LOAD: {
+			LoadSDNode *Load = cast<LoadSDNode>(Op);
+			if (Load->getAlignment() >= 4 && Load->getExtensionType() != ISD::ZEXTLOAD)
+				return SDValue();
+			SDLoc Location(Op);
+			SDValue High = DAG.getLoad(MVT::i16, Location, Load->getChain(), Load->getBasePtr(),
+				Load->getPointerInfo(), Load->getAlignment(),
+				Load->getMemOperand()->getFlags(), Load->getAAInfo());
+			SDValue Low = DAG.getLoad(MVT::i16, Location, High.getValue(1),
+				DAG.getMemBasePlusOffset(Load->getBasePtr(), 1, Location),
+				Load->getPointerInfo().getWithOffset(2), MinAlign(Load->getAlignment(), 2),
+				Load->getMemOperand()->getFlags(), Load->getAAInfo());
+			SDValue Value = DAG.getNode(ISD::OR, Location, MVT::i40,
+				DAG.getNode(ISD::SHL, Location, MVT::i40,
+					DAG.getNode(ISD::ZERO_EXTEND, Location, MVT::i40, High),
+					DAG.getConstant(16, Location, MVT::i40)),
+				DAG.getNode(ISD::ZERO_EXTEND, Location, MVT::i40, Low));
+			if (Load->getExtensionType() == ISD::SEXTLOAD)
+				Value = DAG.getNode(ISD::SIGN_EXTEND_INREG, Location, MVT::i40, Value,
+					DAG.getValueType(MVT::i32));
+			return DAG.getMergeValues({Value, Low.getValue(1)}, Location);
+		}
+		case ISD::STORE: {
+			StoreSDNode *Store = cast<StoreSDNode>(Op);
+			SDLoc Location(Op);
+			unsigned Width = Store->getMemoryVT().getSizeInBits();
+			if (Width == 32 && Store->getAlignment() >= 4)
+				return SDValue();
+			assert((Width == 32 || Width == 64) && !Store->isAtomic());
+			SDValue Chain = Store->getChain();
+			for (unsigned Index = 0; Index < Width / 16; ++Index) {
+				SDValue Address = DAG.getMemBasePlusOffset(Store->getBasePtr(), Index, Location);
+				SDValue Shift = DAG.getConstant(Width - 16 - 16 * Index, Location, MVT::i40);
+				SDValue Word = DAG.getNode(ISD::TRUNCATE, Location, MVT::i16,
+					DAG.getNode(ISD::SRL, Location, Store->getValue().getValueType(), Store->getValue(), Shift));
+				Chain = DAG.getStore(Chain, Location, Word, Address,
+					Store->getPointerInfo().getWithOffset(Index * 2),
+					MinAlign(Store->getAlignment(), Index * 2),
+					Store->getMemOperand()->getFlags(), Store->getAAInfo());
+			}
+			return Chain;
+		}
 		default:
 			//Op.dump(&DAG);
 			llvm_unreachable("Unimplemented operand");
@@ -494,7 +550,6 @@ SDValue TeakTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
 			assert(N->getValueType(0) == MVT::i16 && "Unexpected custom legalisation");
 			if(isa<ConstantSDNode>(N->getOperand(1)))
 				return DAG.getNode(Op.getOpcode(), dl, MVT::i16, N->getOperand(0), N->getOperand(1));
-				
 			SDValue NewOp0 = DAG.getNode(ISD::ANY_EXTEND, dl, MVT::i40, N->getOperand(0));
 			SDValue NewOp1 = DAG.getNode(ISD::ANY_EXTEND, dl, MVT::i40, N->getOperand(1));
 			SDValue NewWOp = DAG.getNode(Op.getOpcode(), dl, MVT::i40, NewOp0, NewOp1);
@@ -1026,6 +1081,35 @@ void TeakTargetLowering::ReplaceNodeResults(SDNode *N,
 											SmallVectorImpl<SDValue> &Results,
 											SelectionDAG &DAG) const
 {
+	if (N->getOpcode() == ISD::LOAD && N->getValueType(0) == MVT::i64) {
+		LoadSDNode *Load = cast<LoadSDNode>(N);
+		if (Load->getMemoryVT() != MVT::i64 || Load->isAtomic() || Load->isIndexed())
+			return;
+		SDLoc Location(N);
+		assert(Load->getMemoryVT() == MVT::i64 && !Load->isAtomic());
+		SDValue Words[4], Chain = Load->getChain();
+		for (unsigned Index = 0; Index < 4; ++Index) {
+			SDValue Address = DAG.getMemBasePlusOffset(Load->getBasePtr(), Index, Location);
+			SDValue Word = DAG.getLoad(MVT::i16, Location, Chain, Address,
+				Load->getPointerInfo().getWithOffset(Index * 2),
+				MinAlign(Load->getAlignment(), Index * 2),
+				Load->getMemOperand()->getFlags(), Load->getAAInfo());
+			Words[Index] = DAG.getNode(ISD::ZERO_EXTEND, Location, MVT::i40, Word);
+			Chain = Word.getValue(1);
+		}
+		auto ShiftLeft = [&](SDValue Value, unsigned Shift) {
+			return DAG.getNode(ISD::SHL, Location, MVT::i40, Value,
+				DAG.getConstant(Shift, Location, MVT::i40));
+		};
+		SDValue High = DAG.getNode(ISD::OR, Location, MVT::i40,
+			ShiftLeft(Words[0], 8), DAG.getNode(ISD::SRL, Location, MVT::i40, Words[1],
+				DAG.getConstant(8, Location, MVT::i40)));
+		SDValue Low = DAG.getNode(ISD::OR, Location, MVT::i40, Words[3],
+			DAG.getNode(ISD::OR, Location, MVT::i40,
+				ShiftLeft(Words[1], 32), ShiftLeft(Words[2], 16)));
+		Results.append({Low, High, Chain});
+		return;
+	}
 	dbgs() << "Opcode = " << N->getOpcode();
 	//DAG.dump();
 	//N->dumpr(&DAG);
