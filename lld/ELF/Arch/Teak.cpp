@@ -62,6 +62,9 @@ void Teak::relocateOne(uint8_t *loc, RelType type, uint64_t val) const
 {
 	switch (type)
 	{
+		case R_TEAK_16:
+			write16le(loc, (val >> 1) & 0xFFFF);
+			break;
 		case R_TEAK_CALL_IMM18:
 			write16le(loc, (read16le(loc) & ~0x30) | (((val >> 17) & 3) << 4));
 			write16le(loc + 2, (val >> 1) & 0xFFFF);
@@ -88,6 +91,8 @@ int64_t Teak::getImplicitAddend(const uint8_t* buf, RelType type) const
 {
 	switch (type)
 	{
+		case R_TEAK_16:
+			return read16le(buf) << 1;
 		case R_TEAK_CALL_IMM18:
 			return (((read16le(buf) >> 4) & 3) << 17) | (read16le(buf + 2) << 1);
 		case R_TEAK_PTR_IMM16:

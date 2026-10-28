@@ -52,6 +52,9 @@ jobs:
           python3 opendsp/tests/run.py --case silk_math --label ci
           python3 opendsp/tests/run.py --case stack --label ci
           python3 opendsp/tests/run.py --case bulk --label ci
+          python3 opendsp/tests/run.py --case table_words --label ci
+          python3 opendsp/tests/run.py --case pointers --label ci
+          python3 opendsp/tests/run.py --case fft_math --label ci
       - name: Preserve test evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -61,6 +64,7 @@ jobs:
             opendsp/tests/build/*.json
             opendsp/tests/build/*log
             opendsp/tests/build/*.s
+            opendsp/tests/build/*.pcm
       - name: Compiler binaries
         if: ${{ !cancelled() && steps.compiler.outcome == 'success' }}
         uses: actions/upload-artifact@v4

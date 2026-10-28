@@ -1792,7 +1792,13 @@ private:
     unsigned AS = origPtrTy->getPointerAddressSpace();
     llvm::Type *charPtrTy = CGM.Int8Ty->getPointerTo(AS);
     C = llvm::ConstantExpr::getBitCast(C, charPtrTy);
-    C = llvm::ConstantExpr::getGetElementPtr(CGM.Int8Ty, C, getOffset());
+    int64_t ElementBytes = CGM.getDataLayout().getTypeAllocSize(CGM.Int8Ty);
+    int64_t ByteOffset = Value.getLValueOffset().getQuantity();
+    if (ByteOffset % ElementBytes != 0)
+      llvm::report_fatal_error("Unaligned static pointer offset");
+    llvm::Constant *ElementOffset =
+        llvm::ConstantInt::get(CGM.Int64Ty, ByteOffset / ElementBytes);
+    C = llvm::ConstantExpr::getGetElementPtr(CGM.Int8Ty, C, ElementOffset);
     C = llvm::ConstantExpr::getPointerCast(C, origPtrTy);
     return C;
   }

@@ -189,6 +189,60 @@ u16 multiply40(const u16 *, const u16 *, u16);
     return source, body, expected
 
 
+def table_words_case():
+    source,body,expected=pointers_case()
+    source=source.replace('u16 pointer_values[9] = {0x1234,0x2345,0x3456,0x4567,0x5678,0x6789,0x789a,0x89ab,0x9abc};','extern u16 pointer_values[9];')
+    source=source.replace('u16 *const pointer_table[] = {pointer_values, pointer_values+1, pointer_values+3, pointer_values+8};','extern u16 *const pointer_table[];')
+    source=source.replace('struct pointer_record pointer_records[] = {{0x2345,0x12345678u},{0x3456,0x89abcdefu}};','extern struct pointer_record pointer_records[];')
+    source=source.replace('u32 *const record_table[] = {&pointer_records[0].value, &pointer_records[1].value};','extern u32 *const record_table[];')
+    body.extend(['out[n++]=read_pointer(4);','out[n++]=read_pointer(5);'])
+    expected.extend([0x4567,0x1234])
+    return source,body,expected
+
+
+def pointers_case():
+    source = """
+u16 pointer_values[9] = {0x1234,0x2345,0x3456,0x4567,0x5678,0x6789,0x789a,0x89ab,0x9abc};
+u16 *const pointer_table[] = {pointer_values, pointer_values+1, pointer_values+3, pointer_values+8};
+struct pointer_record { u16 guard; u32 value; };
+struct pointer_record pointer_records[] = {{0x2345,0x12345678u},{0x3456,0x89abcdefu}};
+u32 *const record_table[] = {&pointer_records[0].value, &pointer_records[1].value};
+__attribute__((noinline)) u16 read_pointer(u16 index) { return *pointer_table[index]; }
+__attribute__((noinline)) u32 read_record(u16 index) { return *record_table[index]; }
+__attribute__((noinline)) void write_pointer(u16 index, u16 value) { *pointer_table[index]=value; }
+"""
+    body = [f'out[n++]=read_pointer({index});' for index in range(4)]
+    expected = [0x1234,0x2345,0x4567,0x9abc]
+    for index, value in enumerate([0x12345678,0x89abcdef]):
+        body.extend([f'product=read_record({index});','out[n++]=product;','out[n++]=product >> 16;'])
+        expected.extend([value & 65535,value >> 16])
+    body.insert(0,'u32 product;')
+    body.extend(['write_pointer(1,0x1357);','write_pointer(3,0x2468);'])
+    body.extend(f'out[n++]=pointer_values[{index}];' for index in range(9))
+    expected.extend([0x1234,0x1357,0x3456,0x4567,0x5678,0x6789,0x789a,0x89ab,0x2468])
+    return source, body, expected
+
+
+def fft_math_case():
+    source = """
+#include "arch.h"
+__attribute__((noinline)) s32 fft_product(s16 coefficient, s32 sample) { return MULT16_32_Q15(coefficient,sample); }
+__attribute__((noinline)) s32 fft_scale(s16 coefficient, s32 sample) { return MULT16_32_Q16(coefficient,sample); }
+"""
+    coefficients=[-32768,-32767,-31164,-28378,-26510,-19261,-16384,-1,0,1,16384,23170,32767]
+    samples=[-2147483648,-1048576,-65537,-65536,-32768,-17477,-1,0,1,17476,32767,65535,65536,1048575,2147483647]
+    source += 'volatile s16 coefficients[]={' + ','.join(map(str,coefficients)) + '};\n'
+    source += 'volatile s32 samples[]={' + ','.join(map(str,samples)) + '};\n'
+    body,expected=['s32 product;'],[]
+    for i,coefficient in enumerate(coefficients):
+        for j,sample in enumerate(samples):
+            for function,shift in [('fft_product',15),('fft_scale',16)]:
+                body.extend([f'product={function}(coefficients[{i}],samples[{j}]);','out[n++]=product;','out[n++]=(u32)product >> 16;'])
+                value=((coefficient*sample) >> shift) & 0xffffffff
+                expected.extend([value & 65535,value >> 16])
+    return source,body,expected
+
+
 def bulk_case():
     source = '''
 __attribute__((noinline)) u16 local_initializer(u16 index) {
@@ -287,10 +341,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', default='-O2')
     parser.add_argument('--label')
-    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk'], default='comparisons')
+    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'table_words', 'pointers', 'fft_math'], default='comparisons')
     args = parser.parse_args()
     BUILD.mkdir(parents=True, exist_ok=True)
-    factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case}
+    factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'table_words': table_words_case, 'pointers': pointers_case, 'fft_math': fft_math_case}
     functions, body, expected = factories[args.case]() if args.case in factories else comparisons(args.case == 'simple')
     stem = args.case + args.opt.replace('-', '')
     source = BUILD / (stem + '.c')
@@ -301,14 +355,16 @@ def main():
              '-ffunction-sections', '-fdata-sections', '-nostdlib', '-integrated-as', '-I'+str(HERE)]
     upstream_flags = ['-DFIXED_POINT', '-DOPUS_BUILD', '-DHAVE_STDINT_H', '-DHAVE_INTTYPES_H']
     includes = ['-I'+str(HERE/'include'), *['-I'+str(OPUS/p) for p in ['include','celt','silk','.']]]
+    if args.case == 'fft_math':
+        flags += upstream_flags + includes
     objects = []
     for path in [HERE / 'crt0.s', source]:
         obj = BUILD / (path.stem+'.o')
         command([CC, *flags, '-c', path, '-o', obj], path.stem+'.log')
         objects.append(obj)
     command([CC, *flags, '-S', source, '-o', BUILD / (stem+'.s')], stem+'-asm.log')
-    if args.case in ['clz', 'multiply']:
-        ir_source = HERE/('clz40.ll' if args.case == 'clz' else 'multiply40.ll')
+    if args.case in ['clz', 'multiply', 'table_words']:
+        ir_source = HERE/('pointers.ll' if args.case == 'table_words' else 'clz40.ll' if args.case == 'clz' else 'multiply40.ll')
         obj = BUILD/(ir_source.stem+'.o')
         command([CC, '--target=teak', '-O2', '-c', ir_source, '-o', obj], ir_source.stem+'.log')
         objects.append(obj)
@@ -329,12 +385,12 @@ def main():
     elf, cdc = BUILD/(stem+'.elf'), BUILD/(stem+'.cdc')
     command([LD, '--gc-sections', '-T', HERE/'link.ld', *objects, '-o', elf], 'link.log')
     runner = BUILD/'runner'
-    if not runner.exists():
+    if not runner.exists() or runner.stat().st_mtime < (HERE/'runner.cpp').stat().st_mtime:
         command(['g++', '-O2', '-std=c++17', '-I'+str(TEAKRA/'include'), HERE/'runner.cpp',
                  TEAKRA/'b/src/libteakra.a', '-o', runner], 'runner.log')
     reference = BUILD/(stem+'.pcm')
     reference.write_bytes(reference_bytes if args.case in ['nlsf', 'silk_math'] else struct.pack('<'+'H'*len(expected), *[v & 65535 for v in expected]))
-    result = subprocess.run([str(runner), str(elf), str(reference)], capture_output=True, text=True)
+    result = subprocess.run([str(runner), str(elf), str(reference), str(BUILD/(stem+'-actual.pcm'))], capture_output=True, text=True)
     (BUILD/(stem+'-emulate.log')).write_text(result.stdout+result.stderr)
     if not result.stdout.strip():
         raise RuntimeError(f'Emulation failed; see {BUILD / (stem+"-emulate.log")}')

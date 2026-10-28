@@ -13,7 +13,7 @@ static std::vector<unsigned char> read(const char *path) {
 }
 
 int main(int argc, char **argv) {
-    if (argc != 3) return 2;
+    if (argc != 4) return 2;
     auto image = read(argv[1]), expected = read(argv[2]);
     if (image.size() < 52 || expected.size() % 2 || std::memcmp(image.data(), "\177ELF", 4)) return 2;
     auto get32 = [&](unsigned offset) {
@@ -49,9 +49,12 @@ int main(int argc, char **argv) {
     bool completed = words[0x3000] == 0x600d;
     if (words[0x3003] != count) ++errors;
     if (words[0x3002] + count > 0x10000) return 2;
+    std::ofstream actual(argv[3], std::ios::binary);
     for (unsigned i = 0; i < count; ++i) {
         unsigned want = expected[2*i] | (unsigned(expected[2*i+1]) << 8);
         unsigned got = words[words[0x3002] + i];
+        actual.put(got & 255);
+        actual.put(got >> 8);
         if (want != got) {
             if (errors < 24) std::fprintf(stderr, "word=%u got=%04x expected=%04x\n", i, got, want);
             ++errors;

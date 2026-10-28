@@ -47,6 +47,9 @@ unsigned TeakELFObjectWriter::getRelocType(MCContext &Ctx,
   switch ((unsigned)Fixup.getKind()) {
   default:
     llvm_unreachable("Unimplemented");
+  case FK_Data_2:
+    Type = ELF::R_TEAK_16;
+    break;
   case Teak::fixup_teak_call_imm18:
     Type = ELF::R_TEAK_CALL_IMM18;
     break;

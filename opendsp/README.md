@@ -106,3 +106,16 @@ Test declaration shims are not a DSP C runtime. Generated files remain under
 `opendsp/tests/build/`. The CI workflow builds from a clean checkout and executes
 these checks with pinned source dependencies. Physical 3DS validation remains
 necessary for firmware changes.
+
+
+Constant data pointers now use `R_TEAK_16` relocations with word-addressed
+addends. The `table_words` regression checks 19 words, including array and
+structure offsets, writes and negative alias offsets. The Clang constant
+emitter also accounts for the allocation stride when applying byte offsets;
+the `pointers` C regression checks that path in a complete frontend build.
+Its clean CI result remains pending. The split local frontend predates this
+constant-emission fix and fails that C case as expected.
+
+The `fft_math` regression checks 780 words from the unchanged Opus Q15/Q16
+multiplication macros against integer references. Those checks pass locally;
+they do not establish correctness of the complete FFT or decoder.

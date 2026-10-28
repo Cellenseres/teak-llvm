@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-25",
+  "build": "isolated llc and ELF linker; pinned older Linux frontend",
+  "physical_hardware": false,
+  "cases": [
+    {
+      "case": "table_words",
+      "completed": true,
+      "comparisons": 19,
+      "errors": 0,
+      "steps": 186
+    },
+    {
+      "case": "fft_math",
+      "completed": true,
+      "comparisons": 780,
+      "errors": 0,
+      "steps": 77371
+    }
+  ],
+  "pointers_C_frontend": "new constant emitter compiled; full frontend runtime test pending clean CI",
+  "complete_fft": "still fails reference comparison",
+  "verified_comparisons": 5516,
+  "errors": 0,
+  "all_prior_groups_rechecked": true
+}
