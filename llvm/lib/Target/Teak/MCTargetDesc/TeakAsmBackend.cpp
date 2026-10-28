@@ -125,8 +125,6 @@ void TeakAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
     switch (Kind)
     {
         case FK_Data_2:
-            if (Target.getSymA() && !Target.getSymB())
-                Value >>= 1;
             write16le(&Data[Offset], Value);
             break;
         case Teak::fixup_teak_call_imm18:

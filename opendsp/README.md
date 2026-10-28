@@ -109,13 +109,27 @@ necessary for firmware changes.
 
 
 Constant data pointers now use `R_TEAK_16` relocations with word-addressed
-addends. The `table_words` regression checks 19 words, including array and
-structure offsets, writes and negative alias offsets. The Clang constant
-emitter also accounts for the allocation stride when applying byte offsets;
+addends. The `table_words` regression checks 23 words, including array and
+structure offsets, writes, negative alias offsets and internal symbols. The
+Clang constant emitter also accounts for the allocation stride when applying byte offsets;
 the `pointers` C regression checks that path in a complete frontend build.
 Its clean CI result remains pending. The split local frontend predates this
 constant-emission fix and fails that C case as expected.
 
 The `fft_math` regression checks 780 words from the unchanged Opus Q15/Q16
 multiplication macros against integer references. Those checks pass locally;
-they do not establish correctness of the complete FFT or decoder.
+they do not establish correctness of the complete decoder.
+
+
+Data-pointer relocations also normalize expression offsets before combining
+them with section-relative symbol offsets. The previous assembler fix divided
+internal offsets twice, making the FFT state point inside its bit-reversal
+table. The original 60-point FFT then differed in 503 of 1,200 result words.
+
+The unmodified upstream forward FFT is checked at 60, 120, 240 and 480 points,
+with five deterministic real/complex input patterns per size. The test uses
+Opus's original mode tables and compares every 32-bit component to the host.
+All 20 local cases pass 18,000 result words. Including the earlier groups,
+23,520 words pass. See `opendsp/validation/fft-20261025.json`. The clean Clang
+CI result remains pending. Emulator Run(1) counts
+are instruction-step observations, not physical cycle or real-time guarantees.

@@ -15,3 +15,11 @@ i16* getelementptr (i16,i16* @pointer_anchor,i16 -4)],align 2
 @record_table = constant [2 x i32*] [
 i32* getelementptr ([2 x %record],[2 x %record]* @pointer_records,i16 0,i16 0,i32 1),
 i32* getelementptr ([2 x %record],[2 x %record]* @pointer_records,i16 0,i16 1,i32 1)],align 2
+
+@internal_values = internal constant [5 x i16] [i16 4951,i16 9320,i16 13977,i16 18570,i16 22427],align 2
+@internal_anchor = internal alias i16,i16* getelementptr ([5 x i16],[5 x i16]* @internal_values,i16 0,i16 3)
+@internal_table = constant [4 x i16*] [
+i16* getelementptr ([5 x i16],[5 x i16]* @internal_values,i16 0,i16 0),
+i16* getelementptr ([5 x i16],[5 x i16]* @internal_values,i16 0,i16 1),
+i16* getelementptr ([5 x i16],[5 x i16]* @internal_values,i16 0,i16 4),
+i16* getelementptr (i16,i16* @internal_anchor,i16 -2)],align 2

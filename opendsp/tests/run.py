@@ -189,6 +189,33 @@ u16 multiply40(const u16 *, const u16 *, u16);
     return source, body, expected
 
 
+def fft_case(size=60, vector=None):
+    source = '''
+#include "kiss_fft.h"
+extern const opus_int16 eband5ms[];
+extern const unsigned char band_allocation[];
+#include "static_modes_fixed.h"
+kiss_fft_cpx fft_input[FFT_LENGTH], fft_output[FFT_LENGTH];
+'''
+    source=source.replace('FFT_LENGTH',str(size))
+    state='fft_state48000_960_'+str({480:0,240:1,120:2,60:3}[size])
+    body, expected = [], []
+    for case in (range(5) if vector is None else [vector]):
+        for index in range(size):
+            real = (1 << 20) if case == 0 and index == 0 else 0 if case == 0 else (
+                (32767 if index & 1 else -32768) if case == 1 else
+                ((index*7919+case*131071) % 2097152)-1048576)
+            imaginary = 0 if case < 2 else ((index*17957+case*65537) % 1048576)-524288
+            body.append(f'fft_input[{index}].r={real}; fft_input[{index}].i={imaginary};')
+        body.append(f'opus_fft_c(&{state}, fft_input, fft_output);')
+        for index in range(size):
+            for component in ['r', 'i']:
+                body.extend([f'out[n++]=fft_output[{index}].{component};',
+                             f'out[n++]=(u32)fft_output[{index}].{component} >> 16;'])
+                expected.extend([0, 0])
+    return source, body, expected
+
+
 def table_words_case():
     source,body,expected=pointers_case()
     source=source.replace('u16 pointer_values[9] = {0x1234,0x2345,0x3456,0x4567,0x5678,0x6789,0x789a,0x89ab,0x9abc};','extern u16 pointer_values[9];')
@@ -197,6 +224,9 @@ def table_words_case():
     source=source.replace('u32 *const record_table[] = {&pointer_records[0].value, &pointer_records[1].value};','extern u32 *const record_table[];')
     body.extend(['out[n++]=read_pointer(4);','out[n++]=read_pointer(5);'])
     expected.extend([0x4567,0x1234])
+    source += '\nextern const u16 *const internal_table[];\n__attribute__((noinline)) u16 read_internal(u16 index) {return *internal_table[index];}\n'
+    body.extend(f'out[n++]=read_internal({index});' for index in range(4))
+    expected.extend([0x1357,0x2468,0x579b,0x2468])
     return source,body,expected
 
 
@@ -341,12 +371,19 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', default='-O2')
     parser.add_argument('--label')
-    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'table_words', 'pointers', 'fft_math'], default='comparisons')
+    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words'], default='comparisons')
+    parser.add_argument('--fft-size',type=int,choices=[60,120,240,480],default=60)
+    parser.add_argument('--fft-vector',type=int,choices=range(5),default=0)
     args = parser.parse_args()
     BUILD.mkdir(parents=True, exist_ok=True)
-    factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'table_words': table_words_case, 'pointers': pointers_case, 'fft_math': fft_math_case}
-    functions, body, expected = factories[args.case]() if args.case in factories else comparisons(args.case == 'simple')
-    stem = args.case + args.opt.replace('-', '')
+    factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'fft': fft_case, 'pointers': pointers_case, 'fft_math': fft_math_case, 'table_words': table_words_case}
+    if args.case == 'fft':
+        functions, body, expected = fft_case(args.fft_size,args.fft_vector)
+    elif args.case in factories:
+        functions, body, expected = factories[args.case]()
+    else:
+        functions, body, expected = comparisons(args.case == 'simple')
+    stem = args.case + (str(args.fft_size)+'v'+str(args.fft_vector) if args.case=='fft' else '') + args.opt.replace('-', '')
     source = BUILD / (stem + '.c')
     source.write_text('#include "kernels.h"\n#ifdef HOST_REFERENCE\n#include <stdio.h>\n#endif\n' + functions + '\nvolatile s16 input[] = {' + ','.join(map(str, VALUES)) + '};\n' +
                       f'u16 out[{len(expected)}];\nint main(void) {{ u16 n=0;\n' + '\n'.join(body) +
@@ -355,7 +392,8 @@ def main():
              '-ffunction-sections', '-fdata-sections', '-nostdlib', '-integrated-as', '-I'+str(HERE)]
     upstream_flags = ['-DFIXED_POINT', '-DOPUS_BUILD', '-DHAVE_STDINT_H', '-DHAVE_INTTYPES_H']
     includes = ['-I'+str(HERE/'include'), *['-I'+str(OPUS/p) for p in ['include','celt','silk','.']]]
-    if args.case == 'fft_math':
+    if args.case in ['fft','fft_math']:
+        upstream_flags += ['-DNONTHREADSAFE_PSEUDOSTACK']
         flags += upstream_flags + includes
     objects = []
     for path in [HERE / 'crt0.s', source]:
@@ -368,14 +406,14 @@ def main():
         obj = BUILD/(ir_source.stem+'.o')
         command([CC, '--target=teak', '-O2', '-c', ir_source, '-o', obj], ir_source.stem+'.log')
         objects.append(obj)
-    if args.case in ['sort', 'nlsf', 'silk_math']:
-        units = ['sum_sqr_shift', 'bwexpander_32', 'lin2log'] if args.case == 'silk_math' else ['sort'] + (['NLSF_stabilize'] if args.case == 'nlsf' else [])
-        directory = OPUS/'silk'
+    if args.case in ['sort', 'nlsf', 'silk_math', 'fft']:
+        units = ['kiss_fft'] if args.case == 'fft' else ['sum_sqr_shift', 'bwexpander_32', 'lin2log'] if args.case == 'silk_math' else ['sort'] + (['NLSF_stabilize'] if args.case == 'nlsf' else [])
+        directory = OPUS/('celt' if args.case == 'fft' else 'silk')
         for name in units:
             obj = BUILD / (name+'.o')
             command([CC, *flags, *upstream_flags, *includes, '-c', directory/(name+'.c'), '-o', obj], name+'.log')
             objects.append(obj)
-        if args.case in ['nlsf', 'silk_math']:
+        if args.case in ['nlsf', 'silk_math', 'fft']:
             host = BUILD/'host-reference'
             command(['cc', '-O2', '-fwrapv', '-DHOST_REFERENCE', '-I'+str(HERE), *upstream_flags,
                      *['-I'+str(OPUS/p) for p in ['include','celt','silk','.']], source,
@@ -389,7 +427,7 @@ def main():
         command(['g++', '-O2', '-std=c++17', '-I'+str(TEAKRA/'include'), HERE/'runner.cpp',
                  TEAKRA/'b/src/libteakra.a', '-o', runner], 'runner.log')
     reference = BUILD/(stem+'.pcm')
-    reference.write_bytes(reference_bytes if args.case in ['nlsf', 'silk_math'] else struct.pack('<'+'H'*len(expected), *[v & 65535 for v in expected]))
+    reference.write_bytes(reference_bytes if args.case in ['nlsf', 'silk_math', 'fft'] else struct.pack('<'+'H'*len(expected), *[v & 65535 for v in expected]))
     result = subprocess.run([str(runner), str(elf), str(reference), str(BUILD/(stem+'-actual.pcm'))], capture_output=True, text=True)
     (BUILD/(stem+'-emulate.log')).write_text(result.stdout+result.stderr)
     if not result.stdout.strip():
@@ -398,6 +436,8 @@ def main():
         if not args.label.replace('-', '').replace('_', '').isalnum():
             raise SystemExit('Invalid label')
         evidence = json.loads(result.stdout)
+        if args.case=='fft':
+            evidence.update(fft_size=args.fft_size,fft_vector=args.fft_vector)
         evidence.update(case=args.case, optimization=args.opt, diagnostics=result.stderr.splitlines(),
                         compiler=CC, physical_hardware=False)
         (BUILD/(args.label+'-'+stem+'.json')).write_text(json.dumps(evidence, indent=2)+'\n')

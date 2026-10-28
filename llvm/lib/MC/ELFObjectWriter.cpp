@@ -1476,6 +1476,14 @@ void ELFObjectWriter::recordRelocation(MCAssembler &Asm,
   bool RelocateWithSymbol = shouldRelocateWithSymbol(Asm, RefA, SymA, C, Type);
   uint64_t Addend = 0;
 
+  if (TargetObjectWriter->getEMachine() == ELF::EM_TEAK &&
+      Type == ELF::R_TEAK_16) {
+    if (C & 1) {
+      Ctx.reportError(Fixup.getLoc(), "Unaligned Teak data pointer");
+      return;
+    }
+    C >>= 1;
+  }
   if (TargetObjectWriter->getEMachine() == ELF::EM_TEAK)
   {
       FixedValue = !RelocateWithSymbol && SymA && !SymA->isUndefined()

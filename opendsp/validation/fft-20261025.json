@@ -1,0 +1,179 @@
+{
+  "date": "2026-10-25",
+  "build": "isolated llc and ELF linker; pinned Linux Clang frontend",
+  "physical_hardware": false,
+  "interrupts_masked": true,
+  "arithmetic_saturation": false,
+  "move_saturation": false,
+  "upstream_opus": "22244de5a79bd1d6d623c32e72bf1954b56235be",
+  "fft_source_modified": false,
+  "fft_direction": "forward",
+  "fft_comparisons": 18000,
+  "errors": 0,
+  "total_verified_words": 23520,
+  "table_words_comparisons": 23,
+  "clean_clang_ci": "pending",
+  "steps_are_physical_cycles": false,
+  "cases": [
+    {
+      "completed": true,
+      "comparisons": 240,
+      "errors": 0,
+      "steps": 173841,
+      "size": 60,
+      "vector": 0
+    },
+    {
+      "completed": true,
+      "comparisons": 240,
+      "errors": 0,
+      "steps": 173843,
+      "size": 60,
+      "vector": 1
+    },
+    {
+      "completed": true,
+      "comparisons": 240,
+      "errors": 0,
+      "steps": 174064,
+      "size": 60,
+      "vector": 2
+    },
+    {
+      "completed": true,
+      "comparisons": 240,
+      "errors": 0,
+      "steps": 174065,
+      "size": 60,
+      "vector": 3
+    },
+    {
+      "completed": true,
+      "comparisons": 240,
+      "errors": 0,
+      "steps": 174064,
+      "size": 60,
+      "vector": 4
+    },
+    {
+      "completed": true,
+      "comparisons": 480,
+      "errors": 0,
+      "steps": 359137,
+      "size": 120,
+      "vector": 0
+    },
+    {
+      "completed": true,
+      "comparisons": 480,
+      "errors": 0,
+      "steps": 359139,
+      "size": 120,
+      "vector": 1
+    },
+    {
+      "completed": true,
+      "comparisons": 480,
+      "errors": 0,
+      "steps": 359589,
+      "size": 120,
+      "vector": 2
+    },
+    {
+      "completed": true,
+      "comparisons": 480,
+      "errors": 0,
+      "steps": 359588,
+      "size": 120,
+      "vector": 3
+    },
+    {
+      "completed": true,
+      "comparisons": 480,
+      "errors": 0,
+      "steps": 359588,
+      "size": 120,
+      "vector": 4
+    },
+    {
+      "completed": true,
+      "comparisons": 960,
+      "errors": 0,
+      "steps": 898570,
+      "size": 240,
+      "vector": 0
+    },
+    {
+      "completed": true,
+      "comparisons": 960,
+      "errors": 0,
+      "steps": 898572,
+      "size": 240,
+      "vector": 1
+    },
+    {
+      "completed": true,
+      "comparisons": 960,
+      "errors": 0,
+      "steps": 899495,
+      "size": 240,
+      "vector": 2
+    },
+    {
+      "completed": true,
+      "comparisons": 960,
+      "errors": 0,
+      "steps": 899494,
+      "size": 240,
+      "vector": 3
+    },
+    {
+      "completed": true,
+      "comparisons": 960,
+      "errors": 0,
+      "steps": 899493,
+      "size": 240,
+      "vector": 4
+    },
+    {
+      "completed": true,
+      "comparisons": 1920,
+      "errors": 0,
+      "steps": 1848101,
+      "size": 480,
+      "vector": 0
+    },
+    {
+      "completed": true,
+      "comparisons": 1920,
+      "errors": 0,
+      "steps": 1848103,
+      "size": 480,
+      "vector": 1
+    },
+    {
+      "completed": true,
+      "comparisons": 1920,
+      "errors": 0,
+      "steps": 1849963,
+      "size": 480,
+      "vector": 2
+    },
+    {
+      "completed": true,
+      "comparisons": 1920,
+      "errors": 0,
+      "steps": 1849963,
+      "size": 480,
+      "vector": 3
+    },
+    {
+      "completed": true,
+      "comparisons": 1920,
+      "errors": 0,
+      "steps": 1849960,
+      "size": 480,
+      "vector": 4
+    }
+  ]
+}
