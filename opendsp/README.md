@@ -41,8 +41,9 @@ registers. Promoted 32-bit values use the same lowering. The native `clz` test
 covers zero, powers of two, nearby values and deterministic random inputs.
 No runtime helper or multiplier state is required.
 
-Wide multiplication uses six signed 15-bit partial products. The native test
-checks 1,752 result words across 16-, 32- and 40-bit boundary/random inputs.
+The general wide-multiplication fallback uses six signed 15-bit partial
+products. The native test checks 2,628 result words across 16-, 32- and 40-bit
+boundary/random inputs, including signed 16-by-40-bit products.
 Accumulator spills now preserve all 40 bits, including the extension byte.
 Keeping the old spills produces 160 wrong words with the same unsaturated
 startup. Narrowed loads are disabled because their byte offsets address the
@@ -133,3 +134,16 @@ All 20 local cases pass 18,000 result words. Including the earlier groups,
 23,520 words pass. See `opendsp/validation/fft-20261025.json`. The clean Clang
 CI result remains pending. Emulator Run(1) counts
 are instruction-step observations, not physical cycle or real-time guarantees.
+
+
+Proven signed 16-bit operands use one native multiply when both factors fit,
+two partial products for an unsigned 16-bit partner, or three for a wider
+partner. Other operands retain the full fallback. The same 480-point complex
+FFT drops from 1,849,963 to 764,698 emulator steps with identical output.
+The Q15/Q16 macro group drops from 77,371 to 13,996 steps.
+
+All groups, including the enlarged multiplication vectors and 20 FFT cases,
+pass 24,396 words. `opendsp/validation/narrow-products-20261025.json` records
+the results. The existing firmware rebuild remains byte-identical and both
+multiplier scans pass. These measurements do not change the production
+requirements for interrupt-safe multiplier use and arithmetic-mode handling.

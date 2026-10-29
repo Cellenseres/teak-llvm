@@ -29,3 +29,25 @@ define i16 @multiply40(i16* %left, i16* %right, i16 %shift) {
   %result = trunc i40 %shifted to i16
   ret i16 %result
 }
+
+define i16 @multiply_signed40(i16* %left, i16* %right, i16 %shift) {
+  %right_middle = getelementptr i16, i16* %right, i16 1
+  %right_high = getelementptr i16, i16* %right, i16 2
+  %left0 = load i16, i16* %left
+  %right0 = load i16, i16* %right
+  %right1 = load i16, i16* %right_middle
+  %right2 = load i16, i16* %right_high
+  %left0_wide = sext i16 %left0 to i40
+  %right0_wide = zext i16 %right0 to i40
+  %right1_wide = zext i16 %right1 to i40
+  %right2_wide = zext i16 %right2 to i40
+  %right1_shifted = shl i40 %right1_wide, 16
+  %right2_shifted = shl i40 %right2_wide, 32
+  %right_lower = or i40 %right0_wide, %right1_shifted
+  %right_value = or i40 %right_lower, %right2_shifted
+  %product = mul i40 %left0_wide, %right_value
+  %shift_wide = zext i16 %shift to i40
+  %shifted = lshr i40 %product, %shift_wide
+  %result = trunc i40 %shifted to i16
+  ret i16 %result
+}

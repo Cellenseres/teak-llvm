@@ -1,0 +1,282 @@
+{
+  "date": "2026-10-25",
+  "build": "isolated llc and ELF linker; pinned Linux Clang frontend",
+  "physical_hardware": false,
+  "interrupts_masked": true,
+  "arithmetic_saturation": false,
+  "move_saturation": false,
+  "comparisons": 24396,
+  "errors": 0,
+  "clean_clang_ci": "pending",
+  "before_fft480_vector2_steps": 1849963,
+  "after_fft480_vector2_steps": 764698,
+  "steps_are_physical_cycles": false,
+  "before_fft_math_steps": 77371,
+  "after_fft_math_steps": 13996,
+  "cases": [
+    {
+      "case": "simple",
+      "comparisons": 495,
+      "errors": 0,
+      "steps": 5595,
+      "completed": true
+    },
+    {
+      "case": "comparisons",
+      "comparisons": 333,
+      "errors": 0,
+      "steps": 40142,
+      "completed": true
+    },
+    {
+      "case": "sort",
+      "comparisons": 36,
+      "errors": 0,
+      "steps": 8578,
+      "completed": true
+    },
+    {
+      "case": "nlsf",
+      "comparisons": 256,
+      "errors": 0,
+      "steps": 516700,
+      "completed": true
+    },
+    {
+      "case": "clz",
+      "comparisons": 642,
+      "errors": 0,
+      "steps": 87313,
+      "completed": true
+    },
+    {
+      "case": "multiply",
+      "comparisons": 2628,
+      "errors": 0,
+      "steps": 274807,
+      "completed": true
+    },
+    {
+      "case": "silk_math",
+      "comparisons": 293,
+      "errors": 0,
+      "steps": 98172,
+      "completed": true
+    },
+    {
+      "case": "stack",
+      "comparisons": 747,
+      "errors": 0,
+      "steps": 11753,
+      "completed": true
+    },
+    {
+      "case": "bulk",
+      "comparisons": 163,
+      "errors": 0,
+      "steps": 2250,
+      "completed": true
+    },
+    {
+      "case": "table_words",
+      "comparisons": 23,
+      "errors": 0,
+      "steps": 233,
+      "completed": true
+    },
+    {
+      "case": "fft_math",
+      "comparisons": 780,
+      "errors": 0,
+      "steps": 13996,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 60,
+      "fft_vector": 0,
+      "comparisons": 240,
+      "errors": 0,
+      "steps": 71348,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 60,
+      "fft_vector": 1,
+      "comparisons": 240,
+      "errors": 0,
+      "steps": 71350,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 60,
+      "fft_vector": 2,
+      "comparisons": 240,
+      "errors": 0,
+      "steps": 71571,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 60,
+      "fft_vector": 3,
+      "comparisons": 240,
+      "errors": 0,
+      "steps": 71572,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 60,
+      "fft_vector": 4,
+      "comparisons": 240,
+      "errors": 0,
+      "steps": 71571,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 120,
+      "fft_vector": 0,
+      "comparisons": 480,
+      "errors": 0,
+      "steps": 148278,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 120,
+      "fft_vector": 1,
+      "comparisons": 480,
+      "errors": 0,
+      "steps": 148280,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 120,
+      "fft_vector": 2,
+      "comparisons": 480,
+      "errors": 0,
+      "steps": 148730,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 120,
+      "fft_vector": 3,
+      "comparisons": 480,
+      "errors": 0,
+      "steps": 148729,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 120,
+      "fft_vector": 4,
+      "comparisons": 480,
+      "errors": 0,
+      "steps": 148729,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 240,
+      "fft_vector": 0,
+      "comparisons": 960,
+      "errors": 0,
+      "steps": 367999,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 240,
+      "fft_vector": 1,
+      "comparisons": 960,
+      "errors": 0,
+      "steps": 368001,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 240,
+      "fft_vector": 2,
+      "comparisons": 960,
+      "errors": 0,
+      "steps": 368924,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 240,
+      "fft_vector": 3,
+      "comparisons": 960,
+      "errors": 0,
+      "steps": 368923,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 240,
+      "fft_vector": 4,
+      "comparisons": 960,
+      "errors": 0,
+      "steps": 368922,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 480,
+      "fft_vector": 0,
+      "comparisons": 1920,
+      "errors": 0,
+      "steps": 762836,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 480,
+      "fft_vector": 1,
+      "comparisons": 1920,
+      "errors": 0,
+      "steps": 762838,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 480,
+      "fft_vector": 2,
+      "comparisons": 1920,
+      "errors": 0,
+      "steps": 764698,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 480,
+      "fft_vector": 3,
+      "comparisons": 1920,
+      "errors": 0,
+      "steps": 764698,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 480,
+      "fft_vector": 4,
+      "comparisons": 1920,
+      "errors": 0,
+      "steps": 764695,
+      "completed": true
+    }
+  ],
+  "firmware_candidate": {
+    "bytes": 246656,
+    "sha256": "3d0e7998aa3f6e1ec20ca201bff0e94ff129a990fe0d5a32dfedac4d2631a261",
+    "aac_multiplier_scan": "pass",
+    "mp3_multiplier_scan": "pass",
+    "prebuilt_replaced": false
+  }
+}

@@ -159,6 +159,7 @@ def multiply_case():
 __attribute__((noinline)) u32 multiply32(u32 left, u32 right) { return left*right; }
 __attribute__((noinline)) u16 multiply16(u16 left, u16 right) { return left*right; }
 u16 multiply40(const u16 *, const u16 *, u16);
+u16 multiply_signed40(const u16 *, const u16 *, u16);
 '''
     inputs, body, expected = [], [], []
     values = [0, 1, 2, 0x7fff, 0x8000, 0xffff, 0x10000, 0x7fffffff,
@@ -184,6 +185,10 @@ u16 multiply40(const u16 *, const u16 *, u16);
             body.append(f'out[n++] = multiply40((const u16 *)multiply_inputs+{index}, '
                         f'(const u16 *)multiply_inputs+{index+3}, {shift});')
             expected.append((((left*right) & 0xffffffffff) >> shift) & 65535)
+            body.append(f'out[n++] = multiply_signed40((const u16 *)multiply_inputs+{index}, '
+                        f'(const u16 *)multiply_inputs+{index+3}, {shift});')
+            signed_left=((left & 65535) ^ 0x8000)-0x8000
+            expected.append((((signed_left*right) & 0xffffffffff) >> shift) & 65535)
     source += '\nvolatile u16 multiply_inputs[] = {' + ','.join(map(str, inputs)) + '};\n'
     body.insert(0, 'u32 product;')
     return source, body, expected

@@ -589,6 +589,45 @@ SDValue TeakTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
 			const SDNode *N = Op.getNode();
 			SDLoc dl(N);
 			if (N->getValueType(0) == MVT::i40) {
+				SDValue LeftOperand = N->getOperand(0);
+				SDValue RightOperand = N->getOperand(1);
+				bool LeftIsSignedWord = DAG.ComputeNumSignBits(LeftOperand) >= 25;
+				bool RightIsSignedWord = DAG.ComputeNumSignBits(RightOperand) >= 25;
+				auto NativeProduct = [&](SDValue Left, SDValue Right) {
+					return DAG.getNode(TeakISD::MPY, dl, MVT::i40,
+						DAG.getNode(ISD::TRUNCATE, dl, MVT::i16, Left),
+						DAG.getNode(ISD::TRUNCATE, dl, MVT::i16, Right));
+				};
+				if (LeftIsSignedWord && RightIsSignedWord)
+					return NativeProduct(LeftOperand, RightOperand);
+				APInt UpperBits = APInt::getHighBitsSet(40, 24);
+				if ((LeftIsSignedWord && DAG.MaskedValueIsZero(RightOperand, UpperBits)) ||
+					(RightIsSignedWord && DAG.MaskedValueIsZero(LeftOperand, UpperBits))) {
+					SDValue SignedWord = LeftIsSignedWord ? LeftOperand : RightOperand;
+					SDValue UnsignedWord = LeftIsSignedWord ? RightOperand : LeftOperand;
+					SDValue LowWord = DAG.getNode(ISD::AND, dl, MVT::i40, UnsignedWord,
+						DAG.getConstant(0x7fff, dl, MVT::i40));
+					SDValue HighBit = DAG.getNode(ISD::SRL, dl, MVT::i40, UnsignedWord,
+						DAG.getConstant(15, dl, MVT::i40));
+					return DAG.getNode(ISD::ADD, dl, MVT::i40,
+						NativeProduct(SignedWord, LowWord),
+						DAG.getNode(ISD::SHL, dl, MVT::i40, NativeProduct(SignedWord, HighBit),
+							DAG.getConstant(15, dl, MVT::i40)));
+				}
+				if (LeftIsSignedWord || RightIsSignedWord) {
+					SDValue SignedWord = LeftIsSignedWord ? LeftOperand : RightOperand;
+					SDValue WideOperand = LeftIsSignedWord ? RightOperand : LeftOperand;
+					SDValue Result = DAG.getConstant(0, dl, MVT::i40);
+					for (unsigned Index = 0; Index < 3; ++Index) {
+						SDValue Shift = DAG.getConstant(Index * 15, dl, MVT::i40);
+						SDValue Word = DAG.getNode(ISD::AND, dl, MVT::i40,
+							DAG.getNode(ISD::SRL, dl, MVT::i40, WideOperand, Shift),
+							DAG.getConstant(0x7fff, dl, MVT::i40));
+						Result = DAG.getNode(ISD::ADD, dl, MVT::i40, Result,
+							DAG.getNode(ISD::SHL, dl, MVT::i40, NativeProduct(SignedWord, Word), Shift));
+					}
+					return Result;
+				}
 				// Keep signed multiplier inputs positive.
 				SDValue Left[3], Right[3];
 				SDValue Mask = DAG.getConstant(0x7fff, dl, MVT::i40);
