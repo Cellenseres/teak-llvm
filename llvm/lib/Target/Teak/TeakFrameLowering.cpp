@@ -91,15 +91,12 @@ void TeakFrameLowering::emitPrologue(MachineFunction &MF, MachineBasicBlock &MBB
     MachineBasicBlock::iterator MBBI = MBB.begin();
     DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
     uint64_t StackSize = computeStackSize(MF);
-    if (!StackSize)
-      return;
-
     MachineFrameInfo& MFI = MF.getFrameInfo();
     const std::vector<CalleeSavedInfo>& CSI = MFI.getCalleeSavedInfo();
 
     StackSize -= CSI.size() * 2;
 
-    if (!StackSize)
+    if (!StackSize && MFI.getNumFixedObjects() == 0)
       return;
 
     BuildMI(MBB, MBBI, dl, TII.get(Teak::PUSH_regnob16), Teak::R7)
@@ -109,7 +106,8 @@ void TeakFrameLowering::emitPrologue(MachineFunction &MF, MachineBasicBlock &MBB
             .addReg(Teak::SP)
             .setMIFlag(MachineInstr::FrameSetup);
 
-    BuildMI(MBB, MBBI, dl, TII.get(Teak::ADDV_imm16_RegNoBRegs16), Teak::SP)
+    if (StackSize)
+      BuildMI(MBB, MBBI, dl, TII.get(Teak::ADDV_imm16_RegNoBRegs16), Teak::SP)
             .addImm(-(StackSize >> 1))
             .addReg(Teak::SP)
             .setMIFlag(MachineInstr::FrameSetup);
@@ -125,15 +123,12 @@ void TeakFrameLowering::emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB
     MachineBasicBlock::iterator MBBI = MBB.getLastNonDebugInstr();
     DebugLoc dl = MBBI->getDebugLoc();
     uint64_t StackSize = computeStackSize(MF);
-    if (!StackSize)
-        return;
-
 	MachineFrameInfo& MFI = MF.getFrameInfo();
 	const std::vector<CalleeSavedInfo>& CSI = MFI.getCalleeSavedInfo();
 
 	StackSize -= CSI.size() * 2;
 
-	if (!StackSize)
+	if (!StackSize && MFI.getNumFixedObjects() == 0)
 		return;
 
     BuildMI(MBB, MBBI, dl, TII.get(Teak::MOV_regnobp016_regnob16), Teak::SP)
@@ -150,15 +145,14 @@ void TeakFrameLowering::emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB
 MachineBasicBlock::iterator TeakFrameLowering::eliminateCallFramePseudoInstr(
     MachineFunction &MF, MachineBasicBlock &MBB,
     MachineBasicBlock::iterator I) const {
-  // if (!hasReservedCallFrame(MF)) {
-  //   MachineInstr &MI = *I;
-  //   int Size = MI.getOperand(0).getImm();
-  //   if (MI.getOpcode() == VE::ADJCALLSTACKDOWN)
-  //     Size = -Size;
-
-  //   if (Size)
-  //     emitSPAdjustment(MF, MBB, I, Size);
-  // }
+  int Words = I->getOperand(0).getImm() / 2;
+  if (I->getOpcode() == Teak::ADJCALLSTACKDOWN)
+    Words = -Words;
+  if (Words) {
+    const TargetInstrInfo &Instructions = *MF.getSubtarget().getInstrInfo();
+    BuildMI(MBB, I, I->getDebugLoc(), Instructions.get(Teak::ADDV_imm16_RegNoBRegs16), Teak::SP)
+        .addImm(Words).addReg(Teak::SP);
+  }
   return MBB.erase(I);
 }
 

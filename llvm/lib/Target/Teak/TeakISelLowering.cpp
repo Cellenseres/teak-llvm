@@ -880,11 +880,20 @@ SDValue TeakTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 	assert(VA.isMemLoc() &&
 		   "Only support passing arguments through registers or via the stack");
 
-	SDValue StackPtr = DAG.getRegister(Teak::SP, MVT::i32);
-	SDValue PtrOff = DAG.getIntPtrConstant(VA.getLocMemOffset(), Loc);
-	PtrOff = DAG.getNode(ISD::ADD, Loc, MVT::i32, StackPtr, PtrOff);
-	MemOpChains.push_back(
-		DAG.getStore(Chain, Loc, Arg, PtrOff, MachinePointerInfo()));
+	SDValue StackPointer = DAG.getCopyFromReg(Chain, Loc, Teak::SP, MVT::i16);
+	SDValue StoreChain = StackPointer.getValue(1);
+	unsigned WordCount = VA.getLocVT() == MVT::i16 ? 1 : 3;
+	for (unsigned WordIndex = 0; WordIndex < WordCount; ++WordIndex) {
+		SDValue Address = DAG.getNode(ISD::ADD, Loc, MVT::i16, StackPointer,
+			DAG.getConstant(VA.getLocMemOffset() / 2 + WordIndex, Loc, MVT::i16));
+		SDValue Word = Arg;
+		if (WordCount > 1)
+			Word = DAG.getNode(ISD::TRUNCATE, Loc, MVT::i16,
+				DAG.getNode(ISD::SRL, Loc, MVT::i40, Arg,
+					DAG.getConstant((WordCount - WordIndex - 1) * 16, Loc, MVT::i40)));
+		StoreChain = DAG.getStore(StoreChain, Loc, Word, Address, MachinePointerInfo(), 2);
+	}
+	MemOpChains.push_back(StoreChain);
   }
 
   // Emit all stores, make sure they occur before the call.
@@ -1032,23 +1041,27 @@ SDValue TeakTargetLowering::LowerFormalArguments(
 	  continue;
 	}
 
-	assert(VA.isRegLoc() && "TODO implement argument passing on stack");
-
-	// assert(VA.isMemLoc() &&
-	//        "Can only pass arguments as either registers or via the stack");
-
-	// const unsigned Offset = VA.getLocMemOffset();
-
-	// const int FI = MF.getFrameInfo().CreateFixedObject(4, Offset, true);
-	// EVT PtrTy = getPointerTy(DAG.getDataLayout());
-	// SDValue FIPtr = DAG.getFrameIndex(FI, PtrTy);
-
-	// assert(VA.getValVT() == MVT::i32 &&
-	//        "Only support passing arguments as i32");
-	// SDValue Load = DAG.getLoad(VA.getValVT(), dl, Chain, FIPtr,
-	//                            MachinePointerInfo(), false, false, false, 0);
-
-	// InVals.push_back(Load);
+	assert(VA.isMemLoc() && "Expected a stack argument");
+	unsigned WordCount = VA.getLocVT() == MVT::i16 ? 1 : 3;
+	int FrameIndex = MF.getFrameInfo().CreateFixedObject(WordCount * 2,
+		VA.getLocMemOffset() + 4, true);
+	SDValue Base = DAG.getFrameIndex(FrameIndex, MVT::i16);
+	SDValue Value = DAG.getConstant(0, dl, VA.getLocVT());
+	for (unsigned WordIndex = 0; WordIndex < WordCount; ++WordIndex) {
+		SDValue Address = DAG.getMemBasePlusOffset(Base, WordIndex, dl);
+		SDValue Word = DAG.getLoad(MVT::i16, dl, Chain, Address,
+			MachinePointerInfo::getFixedStack(MF, FrameIndex, WordIndex * 2), 2);
+		Chain = Word.getValue(1);
+		if (WordCount == 1) {
+			Value = Word;
+		} else {
+			SDValue Part = DAG.getNode(ISD::ZERO_EXTEND, dl, MVT::i40, Word);
+			Part = DAG.getNode(ISD::SHL, dl, MVT::i40, Part,
+				DAG.getConstant((WordCount - WordIndex - 1) * 16, dl, MVT::i40));
+			Value = DAG.getNode(ISD::OR, dl, MVT::i40, Value, Part);
+		}
+	}
+	InVals.push_back(Value);
   }
 
   return Chain;

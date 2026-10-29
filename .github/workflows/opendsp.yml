@@ -52,6 +52,8 @@ jobs:
           python3 opendsp/tests/run.py --case silk_math --label ci
           python3 opendsp/tests/run.py --case stack --label ci
           python3 opendsp/tests/run.py --case bulk --label ci
+          python3 opendsp/tests/run.py --case calls --label ci
+          python3 opendsp/tests/run.py --case interpolate --label ci
           python3 opendsp/tests/run.py --case table_words --label ci
           python3 opendsp/tests/run.py --case pointers --label ci
           python3 opendsp/tests/run.py --case fft_math --label ci

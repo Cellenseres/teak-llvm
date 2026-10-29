@@ -636,7 +636,7 @@ def CALL_imm18 : InstTeakImm16<(outs), (ins Operand<i40>:$addr, pred:$p), "call 
 let isTerminator = 1, isReturn = 1, isBarrier = 1, Defs = [SP], Uses = [SP], mayLoad = 1 in
 def RET : InstTeak<(outs), (ins pred:$p), "ret $p",  [(TeakRetFlag)]>;
 
-let Defs = [SP], Uses = [SP] in
+let Defs = [SP, ICC], Uses = [SP] in
 {
     def ADJCALLSTACKDOWN : TeakPseudoInst<(outs), (ins i16imm:$amt, i16imm:$amt2), "# ADJCALLSTACKDOWN $amt, $amt2", [(callseq_start timm:$amt, timm:$amt2)]>;
     def ADJCALLSTACKUP   : TeakPseudoInst<(outs), (ins i16imm:$amt1, i16imm:$amt2), "# ADJCALLSTACKUP $amt1", [(callseq_end timm:$amt1, timm:$amt2)]>;

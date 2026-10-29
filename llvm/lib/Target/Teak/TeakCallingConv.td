@@ -47,12 +47,11 @@ def CC_Teak : CallingConv<[
   CCIfType<[i32], CCPromoteToType<i40>>,
 
   // The first 4 integer arguments are passed in integer registers.
-  CCIfType<[i40], CCAssignToReg<[A0, A1, B0, B1]>>//,
+  CCIfType<[i40], CCAssignToReg<[A0, A1, B0, B1]>>,
   //CCIfType<[i40], CCAssignToRegWithShadow<[A0, A1, B0, B1], [A0L, A1L, B0L, B1L]>>//,
 
-  // Integer values get stored in stack slots that are 4 bytes in
-  // size and 4-byte aligned.
-  //CCIfType<[i32], CCAssignToStack<4, 4>>
+  CCIfType<[i16], CCAssignToStack<2, 2>>,
+  CCIfType<[i40], CCAssignToStack<6, 2>>
 ]>;
 
 def CSR : CalleeSavedRegs<(add Y0, Y1, R0, R1, R2, R3, R4, R5, R6, R7, (sequence "PAGE%u", 0, 39))>;

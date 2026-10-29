@@ -14,7 +14,7 @@ LD = os.environ.get('TEAK_LD', 'ld.lld')
 TEAKRA = Path(os.environ.get('TEAKRA', 'teakra')).resolve()
 OPUS = Path(os.environ.get('OPUS_SOURCE', 'opus')).resolve()
 
-BUILD = HERE / 'build'
+BUILD = Path(os.environ.get('TEAK_TEST_BUILD', str(HERE/'build'))).resolve()
 VALUES = [-32768, -32767, -1024, -1, 0, 1, 1024, 32766, 32767]
 
 
@@ -192,6 +192,84 @@ u16 multiply_signed40(const u16 *, const u16 *, u16);
     source += '\nvolatile u16 multiply_inputs[] = {' + ','.join(map(str, inputs)) + '};\n'
     body.insert(0, 'u32 product;')
     return source, body, expected
+
+
+def interpolate_case():
+    source = """
+void silk_interpolate(s16 *,const s16 *,const s16 *,int,int);
+s16 interpolate_first[16],interpolate_second[16],interpolate_output[18];
+"""
+    body,expected=[],[]
+    for length in [0,1,2,3,7,10,12,16]:
+        for coefficient in range(5):
+            for index in range(length):
+                first=VALUES[(index+coefficient)%len(VALUES)]
+                second=VALUES[(length-index+coefficient)%len(VALUES)]
+                body.append(f'interpolate_first[{index}]={first}; interpolate_second[{index}]={second};')
+            body.extend(f'interpolate_output[{index}]=0x7878;' for index in range(18))
+            body.extend(['interpolate_output[0]=0x1234;',f'interpolate_output[{length+1}]=0x2345;',f'silk_interpolate(interpolate_output+1,interpolate_first,interpolate_second,{coefficient},{length});'])
+            body.extend(f'out[n++]=interpolate_output[{index}];' for index in range(length+2))
+            expected.extend([0]*(length+2))
+    return source,body,expected
+
+
+def calls_case():
+    source = """
+__attribute__((noinline)) u32 call_words(u32 first,u32 second,u32 third,u32 fourth,u32 fifth,u32 sixth) {
+    return (first+fifth)^((second^sixth)<<3)^((third-fourth)>>7);
+}
+__attribute__((noinline)) u16 call_shorts(u16 first,u16 second,u16 third,u16 fourth,u16 fifth,u16 sixth,u16 seventh) {
+    return first+3*second+5*third+7*fourth+11*fifth+13*sixth+17*seventh;
+}
+__attribute__((noinline)) u32 call_mixed(u16 first,u32 second,s16 third,u16 fourth,u32 fifth,s16 sixth) {
+    return ((u32)first<<16)^second^((u32)(s32)third*17u)^((u32)fourth<<1)^fifth^(u32)(s32)sixth;
+}
+__attribute__((noinline)) u32 call_nested(u32 first,u32 second,u32 third,u32 fourth,u32 fifth,u32 sixth) {
+    volatile u16 guards[3]={0x1234,0x2345,0x3456};
+    u32 result=call_words(sixth,fifth,fourth,third,second,first);
+    result^=call_mixed(first,second,third,fourth,fifth,sixth);
+    return result+guards[0]+guards[1]+guards[2];
+}
+"""
+    values=[0,1,0x7fff,0x8000,0xffff,0x7fffffff,0x80000000,0xffffffff,0x12345678]
+    source+='volatile u32 call_inputs[]={'+','.join(str(value)+'u' for value in values)+'};\n'
+    body,expected=['u32 result;'],[]
+    mask=0xffffffff
+    def words(first,second,third,fourth,fifth,sixth):
+        return ((first+fifth)&mask)^(((second^sixth)<<3)&mask)^(((third-fourth)&mask)>>7)
+    def signed_word(value):
+        return ((value&65535)^0x8000)-0x8000
+    def mixed(first,second,third,fourth,fifth,sixth):
+        return ((first&65535)<<16)^second^((signed_word(third)*17)&mask)^((fourth&65535)<<1)^fifth^(signed_word(sixth)&mask)
+    for first_index in range(len(values)):
+        for second_index in range(len(values)):
+            indices=[first_index,second_index]+[(first_index+offset*second_index+offset)%len(values) for offset in range(1,6)]
+            arguments=[values[index] for index in indices]
+            expression=','.join(f'call_inputs[{index}]' for index in indices[:6])
+            results=[words(*arguments[:6]),mixed(*arguments[:6]),(words(*reversed(arguments[:6]))^mixed(*arguments[:6]))+0x1234+0x2345+0x3456]
+            for function,value in zip(['call_words','call_mixed','call_nested'],results):
+                body.extend([f'result={function}({expression});','out[n++]=result;','out[n++]=result >> 16;'])
+                expected.extend([value&65535,(value>>16)&65535])
+            body.append('out[n++]=call_shorts('+','.join(f'call_inputs[{index}]' for index in indices)+');')
+            expected.append(sum((value&65535)*coefficient for value,coefficient in zip(arguments,[1,3,5,7,11,13,17]))&65535)
+    source+='u16 call40(const u16 *,u16);\n'
+    wide_values=[0,1,0x7fffffff,0x80000000,0xffffffff,0x7fffffffff,0x8000000000,0xffffffffff]
+    state=0x17abc985
+    for _ in range(16):
+        state=(state*6364136223846793005+1442695040888963407)&0xffffffffff
+        wide_values.append(state)
+    packed=[]
+    for index in range(len(wide_values)):
+        arguments=[wide_values[(index+offset*7)%len(wide_values)] for offset in range(6)]
+        first,second,third,fourth,fifth,sixth=arguments
+        value=((first+fifth)^(second<<13)^(sixth>>17)^(third-fourth))&0xffffffffff
+        start=len(packed)
+        packed.extend((argument>>shift)&65535 for argument in arguments for shift in [0,16,32])
+        for shift in [0,16,32]:
+            body.append(f'out[n++]=call40((const u16 *)stack40_inputs+{start},{shift});')
+            expected.append((value>>shift)&65535)
+    source+='volatile u16 stack40_inputs[]={'+','.join(map(str,packed))+'};\n'
+    return source,body,expected
 
 
 def fft_case(size=60, vector=None):
@@ -376,12 +454,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', default='-O2')
     parser.add_argument('--label')
-    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words'], default='comparisons')
+    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate'], default='comparisons')
     parser.add_argument('--fft-size',type=int,choices=[60,120,240,480],default=60)
     parser.add_argument('--fft-vector',type=int,choices=range(5),default=0)
     args = parser.parse_args()
     BUILD.mkdir(parents=True, exist_ok=True)
-    factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'fft': fft_case, 'pointers': pointers_case, 'fft_math': fft_math_case, 'table_words': table_words_case}
+    factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'fft': fft_case, 'pointers': pointers_case, 'fft_math': fft_math_case, 'table_words': table_words_case, 'calls': calls_case, 'interpolate': interpolate_case}
     if args.case == 'fft':
         functions, body, expected = fft_case(args.fft_size,args.fft_vector)
     elif args.case in factories:
@@ -406,19 +484,19 @@ def main():
         command([CC, *flags, '-c', path, '-o', obj], path.stem+'.log')
         objects.append(obj)
     command([CC, *flags, '-S', source, '-o', BUILD / (stem+'.s')], stem+'-asm.log')
-    if args.case in ['clz', 'multiply', 'table_words']:
-        ir_source = HERE/('pointers.ll' if args.case == 'table_words' else 'clz40.ll' if args.case == 'clz' else 'multiply40.ll')
+    if args.case in ['clz', 'multiply', 'table_words', 'calls', 'interpolate']:
+        ir_source = HERE/('calls40.ll' if args.case == 'calls' else 'pointers.ll' if args.case == 'table_words' else 'clz40.ll' if args.case == 'clz' else 'multiply40.ll')
         obj = BUILD/(ir_source.stem+'.o')
         command([CC, '--target=teak', '-O2', '-integrated-as', '-c', ir_source, '-o', obj], ir_source.stem+'.log')
         objects.append(obj)
-    if args.case in ['sort', 'nlsf', 'silk_math', 'fft']:
-        units = ['kiss_fft'] if args.case == 'fft' else ['sum_sqr_shift', 'bwexpander_32', 'lin2log'] if args.case == 'silk_math' else ['sort'] + (['NLSF_stabilize'] if args.case == 'nlsf' else [])
+    if args.case in ['sort', 'nlsf', 'silk_math', 'fft', 'interpolate']:
+        units = ['interpolate'] if args.case == 'interpolate' else ['kiss_fft'] if args.case == 'fft' else ['sum_sqr_shift', 'bwexpander_32', 'lin2log'] if args.case == 'silk_math' else ['sort'] + (['NLSF_stabilize'] if args.case == 'nlsf' else [])
         directory = OPUS/('celt' if args.case == 'fft' else 'silk')
         for name in units:
             obj = BUILD / (name+'.o')
             command([CC, *flags, *upstream_flags, *includes, '-c', directory/(name+'.c'), '-o', obj], name+'.log')
             objects.append(obj)
-        if args.case in ['nlsf', 'silk_math', 'fft']:
+        if args.case in ['nlsf', 'silk_math', 'fft', 'interpolate']:
             host = BUILD/'host-reference'
             command(['cc', '-O2', '-fwrapv', '-DHOST_REFERENCE', '-I'+str(HERE), *upstream_flags,
                      *['-I'+str(OPUS/p) for p in ['include','celt','silk','.']], source,
@@ -432,7 +510,7 @@ def main():
         command(['g++', '-O2', '-std=c++17', '-I'+str(TEAKRA/'include'), HERE/'runner.cpp',
                  TEAKRA/'b/src/libteakra.a', '-o', runner], 'runner.log')
     reference = BUILD/(stem+'.pcm')
-    reference.write_bytes(reference_bytes if args.case in ['nlsf', 'silk_math', 'fft'] else struct.pack('<'+'H'*len(expected), *[v & 65535 for v in expected]))
+    reference.write_bytes(reference_bytes if args.case in ['nlsf', 'silk_math', 'fft', 'interpolate'] else struct.pack('<'+'H'*len(expected), *[v & 65535 for v in expected]))
     result = subprocess.run([str(runner), str(elf), str(reference), str(BUILD/(stem+'-actual.pcm'))], capture_output=True, text=True)
     (BUILD/(stem+'-emulate.log')).write_text(result.stdout+result.stderr)
     if not result.stdout.strip():

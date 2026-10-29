@@ -1,0 +1,345 @@
+{
+  "date": "2026-10-25",
+  "build": "clean Linux Clang frontends and current isolated native backend",
+  "physical_hardware": false,
+  "interrupts_masked": true,
+  "arithmetic_saturation": false,
+  "move_saturation": false,
+  "comparisons": 25387,
+  "errors": 0,
+  "cases": [
+    {
+      "case": "simple",
+      "comparisons": 495,
+      "errors": 0,
+      "steps": 5595,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "comparisons",
+      "comparisons": 333,
+      "errors": 0,
+      "steps": 40142,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "sort",
+      "comparisons": 36,
+      "errors": 0,
+      "steps": 8578,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "nlsf",
+      "comparisons": 256,
+      "errors": 0,
+      "steps": 516700,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "clz",
+      "comparisons": 642,
+      "errors": 0,
+      "steps": 87067,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "multiply",
+      "comparisons": 2628,
+      "errors": 0,
+      "steps": 263419,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "silk_math",
+      "comparisons": 293,
+      "errors": 0,
+      "steps": 98172,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "stack",
+      "comparisons": 747,
+      "errors": 0,
+      "steps": 11753,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "bulk",
+      "comparisons": 163,
+      "errors": 0,
+      "steps": 2250,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "table_words",
+      "comparisons": 23,
+      "errors": 0,
+      "steps": 233,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "fft_math",
+      "comparisons": 780,
+      "errors": 0,
+      "steps": 13996,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "pointers",
+      "comparisons": 17,
+      "errors": 0,
+      "steps": 164,
+      "completed": true,
+      "frontend_commit": "c8fa267152fba19fd35f49b493712fd8c05cdea7"
+    },
+    {
+      "case": "calls",
+      "comparisons": 639,
+      "errors": 0,
+      "steps": 118880,
+      "completed": true,
+      "frontend_commit": "c8fa267152fba19fd35f49b493712fd8c05cdea7"
+    },
+    {
+      "case": "interpolate",
+      "comparisons": 335,
+      "errors": 0,
+      "steps": 51788,
+      "completed": true,
+      "frontend_commit": "c8fa267152fba19fd35f49b493712fd8c05cdea7"
+    },
+    {
+      "case": "fft",
+      "fft_size": 60,
+      "fft_vector": 0,
+      "comparisons": 240,
+      "errors": 0,
+      "steps": 71348,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "fft",
+      "fft_size": 60,
+      "fft_vector": 1,
+      "comparisons": 240,
+      "errors": 0,
+      "steps": 71350,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "fft",
+      "fft_size": 60,
+      "fft_vector": 2,
+      "comparisons": 240,
+      "errors": 0,
+      "steps": 71571,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "fft",
+      "fft_size": 60,
+      "fft_vector": 3,
+      "comparisons": 240,
+      "errors": 0,
+      "steps": 71572,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "fft",
+      "fft_size": 60,
+      "fft_vector": 4,
+      "comparisons": 240,
+      "errors": 0,
+      "steps": 71571,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "fft",
+      "fft_size": 120,
+      "fft_vector": 0,
+      "comparisons": 480,
+      "errors": 0,
+      "steps": 148278,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "fft",
+      "fft_size": 120,
+      "fft_vector": 1,
+      "comparisons": 480,
+      "errors": 0,
+      "steps": 148280,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "fft",
+      "fft_size": 120,
+      "fft_vector": 2,
+      "comparisons": 480,
+      "errors": 0,
+      "steps": 148730,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "fft",
+      "fft_size": 120,
+      "fft_vector": 3,
+      "comparisons": 480,
+      "errors": 0,
+      "steps": 148729,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "fft",
+      "fft_size": 120,
+      "fft_vector": 4,
+      "comparisons": 480,
+      "errors": 0,
+      "steps": 148729,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "fft",
+      "fft_size": 240,
+      "fft_vector": 0,
+      "comparisons": 960,
+      "errors": 0,
+      "steps": 367999,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "fft",
+      "fft_size": 240,
+      "fft_vector": 1,
+      "comparisons": 960,
+      "errors": 0,
+      "steps": 368001,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "fft",
+      "fft_size": 240,
+      "fft_vector": 2,
+      "comparisons": 960,
+      "errors": 0,
+      "steps": 368924,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "fft",
+      "fft_size": 240,
+      "fft_vector": 3,
+      "comparisons": 960,
+      "errors": 0,
+      "steps": 368923,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "fft",
+      "fft_size": 240,
+      "fft_vector": 4,
+      "comparisons": 960,
+      "errors": 0,
+      "steps": 368922,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "fft",
+      "fft_size": 480,
+      "fft_vector": 0,
+      "comparisons": 1920,
+      "errors": 0,
+      "steps": 762836,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "fft",
+      "fft_size": 480,
+      "fft_vector": 1,
+      "comparisons": 1920,
+      "errors": 0,
+      "steps": 762838,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "fft",
+      "fft_size": 480,
+      "fft_vector": 2,
+      "comparisons": 1920,
+      "errors": 0,
+      "steps": 764698,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "fft",
+      "fft_size": 480,
+      "fft_vector": 3,
+      "comparisons": 1920,
+      "errors": 0,
+      "steps": 764698,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    },
+    {
+      "case": "fft",
+      "fft_size": 480,
+      "fft_vector": 4,
+      "comparisons": 1920,
+      "errors": 0,
+      "steps": 764695,
+      "completed": true,
+      "frontend_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7"
+    }
+  ],
+  "additional_O1_calls": {
+    "comparisons": 639,
+    "errors": 0,
+    "steps": 118880,
+    "completed": true
+  },
+  "stack_layout": {
+    "i16_words": 1,
+    "i40_words": 3,
+    "return_address_words": 2,
+    "stack_predecrements": true,
+    "incoming_frame_pointer_offset_words": 3
+  },
+  "scope": "scalar register/stack arguments; no variadic or aggregate ABI claim",
+  "firmware_candidate": {
+    "bytes": 246656,
+    "sha256": "3d0e7998aa3f6e1ec20ca201bff0e94ff129a990fe0d5a32dfedac4d2631a261",
+    "aac_multiplier_scan": "pass",
+    "mp3_multiplier_scan": "pass",
+    "prebuilt_replaced": false
+  }
+}

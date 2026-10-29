@@ -42,6 +42,7 @@ namespace llvm
 			std::vector<CalleeSavedInfo> &CSI, const TargetRegisterInfo *TRI) const override;
 
         bool hasFP(const MachineFunction &MF) const override;
+        bool hasReservedCallFrame(const MachineFunction &MF) const override { return false; }
 
         //! Stack slot size (4 bytes)
         static int stackSlotSize() { return 2; }

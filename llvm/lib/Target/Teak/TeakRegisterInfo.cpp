@@ -144,9 +144,13 @@ void TeakRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     const MachineFunction &MF = *MI.getParent()->getParent();
     const MachineFrameInfo& MFI = MF.getFrameInfo();
     MachineOperand &FIOp = MI.getOperand(FIOperandNum);
-    unsigned FI = FIOp.getIndex();
+    int FI = FIOp.getIndex();
 
     if (MI.getOpcode() == Teak::ADDV_imm16_RegNoBRegs16) {
+        if (MFI.isFixedObjectIndex(FI)) {
+            FIOp.ChangeToImmediate(MFI.getObjectOffset(FI) / 2 + 1);
+            return;
+        }
         // Local objects grow toward higher addresses.
         int Offset = MFI.getObjectOffset(FI) + MFI.getStackSize();
         int ObjectWords = (MFI.getObjectSize(FI) + 1) / 2;

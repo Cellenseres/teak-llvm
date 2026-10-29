@@ -114,8 +114,8 @@ addends. The `table_words` regression checks 23 words, including array and
 structure offsets, writes, negative alias offsets and internal symbols. The
 Clang constant emitter also accounts for the allocation stride when applying byte offsets;
 the `pointers` C regression checks that path in a complete frontend build.
-Its clean CI result remains pending. The split local frontend predates this
-constant-emission fix and fails that C case as expected.
+The clean c8fa267 compiler passes that C case locally. The older split
+frontend predates this constant-emission fix and fails it as expected.
 
 The `fft_math` regression checks 780 words from the unchanged Opus Q15/Q16
 multiplication macros against integer references. Those checks pass locally;
@@ -156,3 +156,27 @@ to 5,593 words. Its initial CI failure was a host-assembler invocation after
 successful IR optimization, not another i40 crash. This baseline predates the
 later pointer and multiplication changes; their clean CI results are separate.
 See `opendsp/validation/clean-clang-20261025.json`.
+
+
+Arguments beyond the four scalar registers now use the stack. A 16-bit value
+uses one word; a promoted 32-bit or native 40-bit value uses three, with the
+most significant word first. The DSP pre-decrements SP. Outgoing arguments
+start at SP, followed below by two return-address words and the saved frame
+pointer. Outgoing stack space is released after each call. Fixed incoming slots
+also establish a frame pointer in functions without local variables.
+
+The `calls` regression checks 639 words across mixed scalar types, nested
+calls, local guards and complete 40-bit arguments/results. It passes at O1
+and O2. The unchanged SILK interpolation unit adds 335 host comparisons across
+all Q2 factors and LPC lengths up to 16, including neighboring guards. All
+current groups pass 25,387 words, excluding duplicate O1 checks. See
+`opendsp/validation/stack-arguments-20261025.json`. Variadic calls and aggregate
+argument rules are not covered. `TEAK_TEST_BUILD` selects a separate output
+directory for compiler comparisons.
+
+The clean Linux compiler at c8fa267 also passes all 20 forward-FFT cases and
+both pointer groups directly: 18,040 words. This verifies the original FFT and
+frontend fixes outside the split build. See `opendsp/validation/clean-fft-20261025.json`.
+The workflow at that revision failed on its old assembler command; the local
+rerun explicitly selects the integrated assembler. Newer arithmetic and stack
+changes retain separate validation.

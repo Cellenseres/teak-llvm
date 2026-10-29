@@ -1,0 +1,97 @@
+; SPDX-License-Identifier: BSD-2-Clause
+define internal i40 @stack40_mix(i40 %first,i40 %second,i40 %third,i40 %fourth,i40 %fifth,i40 %sixth) noinline {
+  %sum = add i40 %first,%fifth
+  %left = shl i40 %second,13
+  %right = lshr i40 %sixth,17
+  %difference = sub i40 %third,%fourth
+  %first_mix = xor i40 %sum,%left
+  %second_mix = xor i40 %first_mix,%right
+  %result = xor i40 %second_mix,%difference
+  ret i40 %result
+}
+
+define i16 @call40(i16* %input,i16 %shift) {
+  %value0_word0_address = getelementptr i16,i16* %input,i16 0
+  %value0_word0 = load i16,i16* %value0_word0_address
+  %value0_word0_wide = zext i16 %value0_word0 to i40
+  %value0_word1_address = getelementptr i16,i16* %input,i16 1
+  %value0_word1 = load i16,i16* %value0_word1_address
+  %value0_word1_wide = zext i16 %value0_word1 to i40
+  %value0_word2_address = getelementptr i16,i16* %input,i16 2
+  %value0_word2 = load i16,i16* %value0_word2_address
+  %value0_word2_wide = zext i16 %value0_word2 to i40
+  %value0_middle = shl i40 %value0_word1_wide,16
+  %value0_high = shl i40 %value0_word2_wide,32
+  %value0_low = or i40 %value0_word0_wide,%value0_middle
+  %value0 = or i40 %value0_low,%value0_high
+  %value1_word0_address = getelementptr i16,i16* %input,i16 3
+  %value1_word0 = load i16,i16* %value1_word0_address
+  %value1_word0_wide = zext i16 %value1_word0 to i40
+  %value1_word1_address = getelementptr i16,i16* %input,i16 4
+  %value1_word1 = load i16,i16* %value1_word1_address
+  %value1_word1_wide = zext i16 %value1_word1 to i40
+  %value1_word2_address = getelementptr i16,i16* %input,i16 5
+  %value1_word2 = load i16,i16* %value1_word2_address
+  %value1_word2_wide = zext i16 %value1_word2 to i40
+  %value1_middle = shl i40 %value1_word1_wide,16
+  %value1_high = shl i40 %value1_word2_wide,32
+  %value1_low = or i40 %value1_word0_wide,%value1_middle
+  %value1 = or i40 %value1_low,%value1_high
+  %value2_word0_address = getelementptr i16,i16* %input,i16 6
+  %value2_word0 = load i16,i16* %value2_word0_address
+  %value2_word0_wide = zext i16 %value2_word0 to i40
+  %value2_word1_address = getelementptr i16,i16* %input,i16 7
+  %value2_word1 = load i16,i16* %value2_word1_address
+  %value2_word1_wide = zext i16 %value2_word1 to i40
+  %value2_word2_address = getelementptr i16,i16* %input,i16 8
+  %value2_word2 = load i16,i16* %value2_word2_address
+  %value2_word2_wide = zext i16 %value2_word2 to i40
+  %value2_middle = shl i40 %value2_word1_wide,16
+  %value2_high = shl i40 %value2_word2_wide,32
+  %value2_low = or i40 %value2_word0_wide,%value2_middle
+  %value2 = or i40 %value2_low,%value2_high
+  %value3_word0_address = getelementptr i16,i16* %input,i16 9
+  %value3_word0 = load i16,i16* %value3_word0_address
+  %value3_word0_wide = zext i16 %value3_word0 to i40
+  %value3_word1_address = getelementptr i16,i16* %input,i16 10
+  %value3_word1 = load i16,i16* %value3_word1_address
+  %value3_word1_wide = zext i16 %value3_word1 to i40
+  %value3_word2_address = getelementptr i16,i16* %input,i16 11
+  %value3_word2 = load i16,i16* %value3_word2_address
+  %value3_word2_wide = zext i16 %value3_word2 to i40
+  %value3_middle = shl i40 %value3_word1_wide,16
+  %value3_high = shl i40 %value3_word2_wide,32
+  %value3_low = or i40 %value3_word0_wide,%value3_middle
+  %value3 = or i40 %value3_low,%value3_high
+  %value4_word0_address = getelementptr i16,i16* %input,i16 12
+  %value4_word0 = load i16,i16* %value4_word0_address
+  %value4_word0_wide = zext i16 %value4_word0 to i40
+  %value4_word1_address = getelementptr i16,i16* %input,i16 13
+  %value4_word1 = load i16,i16* %value4_word1_address
+  %value4_word1_wide = zext i16 %value4_word1 to i40
+  %value4_word2_address = getelementptr i16,i16* %input,i16 14
+  %value4_word2 = load i16,i16* %value4_word2_address
+  %value4_word2_wide = zext i16 %value4_word2 to i40
+  %value4_middle = shl i40 %value4_word1_wide,16
+  %value4_high = shl i40 %value4_word2_wide,32
+  %value4_low = or i40 %value4_word0_wide,%value4_middle
+  %value4 = or i40 %value4_low,%value4_high
+  %value5_word0_address = getelementptr i16,i16* %input,i16 15
+  %value5_word0 = load i16,i16* %value5_word0_address
+  %value5_word0_wide = zext i16 %value5_word0 to i40
+  %value5_word1_address = getelementptr i16,i16* %input,i16 16
+  %value5_word1 = load i16,i16* %value5_word1_address
+  %value5_word1_wide = zext i16 %value5_word1 to i40
+  %value5_word2_address = getelementptr i16,i16* %input,i16 17
+  %value5_word2 = load i16,i16* %value5_word2_address
+  %value5_word2_wide = zext i16 %value5_word2 to i40
+  %value5_middle = shl i40 %value5_word1_wide,16
+  %value5_high = shl i40 %value5_word2_wide,32
+  %value5_low = or i40 %value5_word0_wide,%value5_middle
+  %value5 = or i40 %value5_low,%value5_high
+  %mixed = call i40 @stack40_mix(i40 %value0,i40 %value1,i40 %value2,i40 %value3,i40 %value4,i40 %value5)
+  %shift_wide = zext i16 %shift to i40
+  %shifted = lshr i40 %mixed,%shift_wide
+  %result = trunc i40 %shifted to i16
+  ret i16 %result
+}

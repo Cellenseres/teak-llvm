@@ -1,0 +1,207 @@
+{
+  "date": "2026-10-25",
+  "compiler_commit": "c8fa267152fba19fd35f49b493712fd8c05cdea7",
+  "compiler_source": "clean GitHub Actions Linux build, compiler and linker run directly",
+  "artifact_id": 12603787655,
+  "physical_hardware": false,
+  "comparisons": 18040,
+  "errors": 0,
+  "cases": [
+    {
+      "case": "fft",
+      "fft_size": 60,
+      "fft_vector": 0,
+      "comparisons": 240,
+      "errors": 0,
+      "steps": 173841,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 60,
+      "fft_vector": 1,
+      "comparisons": 240,
+      "errors": 0,
+      "steps": 173843,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 60,
+      "fft_vector": 2,
+      "comparisons": 240,
+      "errors": 0,
+      "steps": 174064,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 60,
+      "fft_vector": 3,
+      "comparisons": 240,
+      "errors": 0,
+      "steps": 174065,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 60,
+      "fft_vector": 4,
+      "comparisons": 240,
+      "errors": 0,
+      "steps": 174064,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 120,
+      "fft_vector": 0,
+      "comparisons": 480,
+      "errors": 0,
+      "steps": 359137,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 120,
+      "fft_vector": 1,
+      "comparisons": 480,
+      "errors": 0,
+      "steps": 359139,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 120,
+      "fft_vector": 2,
+      "comparisons": 480,
+      "errors": 0,
+      "steps": 359589,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 120,
+      "fft_vector": 3,
+      "comparisons": 480,
+      "errors": 0,
+      "steps": 359588,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 120,
+      "fft_vector": 4,
+      "comparisons": 480,
+      "errors": 0,
+      "steps": 359588,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 240,
+      "fft_vector": 0,
+      "comparisons": 960,
+      "errors": 0,
+      "steps": 898570,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 240,
+      "fft_vector": 1,
+      "comparisons": 960,
+      "errors": 0,
+      "steps": 898572,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 240,
+      "fft_vector": 2,
+      "comparisons": 960,
+      "errors": 0,
+      "steps": 899495,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 240,
+      "fft_vector": 3,
+      "comparisons": 960,
+      "errors": 0,
+      "steps": 899494,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 240,
+      "fft_vector": 4,
+      "comparisons": 960,
+      "errors": 0,
+      "steps": 899493,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 480,
+      "fft_vector": 0,
+      "comparisons": 1920,
+      "errors": 0,
+      "steps": 1848101,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 480,
+      "fft_vector": 1,
+      "comparisons": 1920,
+      "errors": 0,
+      "steps": 1848103,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 480,
+      "fft_vector": 2,
+      "comparisons": 1920,
+      "errors": 0,
+      "steps": 1849963,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 480,
+      "fft_vector": 3,
+      "comparisons": 1920,
+      "errors": 0,
+      "steps": 1849963,
+      "completed": true
+    },
+    {
+      "case": "fft",
+      "fft_size": 480,
+      "fft_vector": 4,
+      "comparisons": 1920,
+      "errors": 0,
+      "steps": 1849960,
+      "completed": true
+    },
+    {
+      "case": "pointers",
+      "comparisons": 17,
+      "errors": 0,
+      "steps": 164,
+      "completed": true
+    },
+    {
+      "case": "table_words",
+      "comparisons": 23,
+      "errors": 0,
+      "steps": 233,
+      "completed": true
+    }
+  ],
+  "original_ci_failure": "IR test command invoked host assembler; explicit -integrated-as corrects it",
+  "scope": "table pointers and forward FFT baseline; excludes later short-product and stack-argument changes"
+}
