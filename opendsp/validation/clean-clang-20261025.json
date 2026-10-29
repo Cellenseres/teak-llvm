@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-25",
+  "compiler_commit": "d1d5da89fe3bb62285bcfce9d628e5183f80edd7",
+  "compiler_source": "GitHub Actions clean Linux build",
+  "artifact_id": 12602278154,
+  "physical_hardware": false,
+  "comparisons": 5593,
+  "errors": 0,
+  "cases": [
+    {
+      "case": "simple",
+      "comparisons": 495,
+      "errors": 0,
+      "steps": 5595,
+      "completed": true
+    },
+    {
+      "case": "comparisons",
+      "comparisons": 333,
+      "errors": 0,
+      "steps": 40142,
+      "completed": true
+    },
+    {
+      "case": "sort",
+      "comparisons": 36,
+      "errors": 0,
+      "steps": 8578,
+      "completed": true
+    },
+    {
+      "case": "nlsf",
+      "comparisons": 256,
+      "errors": 0,
+      "steps": 516700,
+      "completed": true
+    },
+    {
+      "case": "clz",
+      "comparisons": 642,
+      "errors": 0,
+      "steps": 87067,
+      "completed": true
+    },
+    {
+      "case": "multiply",
+      "comparisons": 2628,
+      "errors": 0,
+      "steps": 345763,
+      "completed": true
+    },
+    {
+      "case": "silk_math",
+      "comparisons": 293,
+      "errors": 0,
+      "steps": 163694,
+      "completed": true
+    },
+    {
+      "case": "stack",
+      "comparisons": 747,
+      "errors": 0,
+      "steps": 11753,
+      "completed": true
+    },
+    {
+      "case": "bulk",
+      "comparisons": 163,
+      "errors": 0,
+      "steps": 2250,
+      "completed": true
+    }
+  ],
+  "original_ci_failure": "IR fixtures invoked the host assembler; fixed by explicit -integrated-as",
+  "scope": "memory and i40 baseline; newer pointer and FFT changes require their own clean build"
+}

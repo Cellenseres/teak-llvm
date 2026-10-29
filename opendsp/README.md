@@ -147,3 +147,12 @@ pass 24,396 words. `opendsp/validation/narrow-products-20261025.json` records
 the results. The existing firmware rebuild remains byte-identical and both
 multiplier scans pass. These measurements do not change the production
 requirements for interrupt-safe multiplier use and arithmetic-mode handling.
+
+
+Clean Linux Clang commit `d1d5da89fe3bb62285bcfce9d628e5183f80edd7` passes
+all nine original groups after the IR fixture command explicitly selects the
+Teak integrated assembler. The enlarged multiplication vectors bring that run
+to 5,593 words. Its initial CI failure was a host-assembler invocation after
+successful IR optimization, not another i40 crash. This baseline predates the
+later pointer and multiplication changes; their clean CI results are separate.
+See `opendsp/validation/clean-clang-20261025.json`.

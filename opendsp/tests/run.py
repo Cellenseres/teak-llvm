@@ -409,7 +409,7 @@ def main():
     if args.case in ['clz', 'multiply', 'table_words']:
         ir_source = HERE/('pointers.ll' if args.case == 'table_words' else 'clz40.ll' if args.case == 'clz' else 'multiply40.ll')
         obj = BUILD/(ir_source.stem+'.o')
-        command([CC, '--target=teak', '-O2', '-c', ir_source, '-o', obj], ir_source.stem+'.log')
+        command([CC, '--target=teak', '-O2', '-integrated-as', '-c', ir_source, '-o', obj], ir_source.stem+'.log')
         objects.append(obj)
     if args.case in ['sort', 'nlsf', 'silk_math', 'fft']:
         units = ['kiss_fft'] if args.case == 'fft' else ['sum_sqr_shift', 'bwexpander_32', 'lin2log'] if args.case == 'silk_math' else ['sort'] + (['NLSF_stabilize'] if args.case == 'nlsf' else [])
