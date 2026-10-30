@@ -196,6 +196,13 @@ reference. It covers windowing, retained overlap, input strides, buffer guards,
 silence and scaling boundaries. Separate cases run one or two blocks. The full
 matrix has its own evidence; successful compilation alone is insufficient.
 
+All 100 MDCT cases pass 80,720 result words. They cover every original Opus
+block size from 120 to 960 samples, valid strides through eight, eight input
+patterns over two blocks, and separate single-block checks. Silence, near-zero
+values and large coefficients exercise scaling. See
+`opendsp/validation/mdct-20261025.json`. This validates the inverse transform,
+not packet decoding or physical playback.
+
 Published main stops at `f9afa50c4b359aba51be2750fcd605a857535759`, containing
 only the four compiler patches shipped with OpenDSP v1.2.2. Newer compiler
 work remains local until publication is approved.
