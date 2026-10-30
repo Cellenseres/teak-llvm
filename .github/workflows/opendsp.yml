@@ -54,12 +54,25 @@ jobs:
           python3 opendsp/tests/run.py --case bulk --label ci
           python3 opendsp/tests/run.py --case calls --label ci
           python3 opendsp/tests/run.py --case interpolate --label ci
+          python3 opendsp/tests/run.py --case word_memory --label ci
           python3 opendsp/tests/run.py --case table_words --label ci
           python3 opendsp/tests/run.py --case pointers --label ci
           python3 opendsp/tests/run.py --case fft_math --label ci
           for length in 60 120 240 480; do
             for vector in 0 1 2 3 4; do
               python3 opendsp/tests/run.py --case fft --fft-size "$length" --fft-vector "$vector" --label ci
+            done
+          done
+          for length in 120 240 480 960; do
+            for stride in 1 2 4 8; do
+              if [ "$((length * stride))" -le 960 ]; then
+                for vector in 0 1 2 3 4 5 6 7; do
+                  python3 opendsp/tests/run.py --case mdct --mdct-size "$length" --mdct-stride "$stride" --mdct-vector "$vector" --label ci
+                done
+              fi
+            done
+            for vector in 0 2 5 6 7; do
+              python3 opendsp/tests/run.py --case mdct --mdct-size "$length" --mdct-vector "$vector" --mdct-frames 1 --label ci
             done
           done
       - name: Preserve test evidence

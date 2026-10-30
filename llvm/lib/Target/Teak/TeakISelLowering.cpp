@@ -272,6 +272,9 @@ bool TeakTargetLowering::getPostIndexedAddressParts(SDNode* N, SDNode* Op,
 	const StoreSDNode* st = dyn_cast<StoreSDNode>(N);
 	if (!(ld && ld->getMemoryVT() == MVT::i16) && !(st && st->getMemoryVT() == MVT::i16))
 		return false;
+	if ((ld && ld->getValueType(0) != MVT::i16) ||
+		(st && st->getValue().getValueType() != MVT::i16))
+		return false;
 
 	if (Op->getOpcode() != ISD::ADD && Op->getOpcode() != ISD::SUB)
 		return false;	

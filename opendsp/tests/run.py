@@ -194,6 +194,38 @@ u16 multiply_signed40(const u16 *, const u16 *, u16);
     return source, body, expected
 
 
+def word_memory_case():
+    source = """
+__attribute__((noinline)) u32 sum_unsigned_words(const u16 *input,u16 count) {
+    u32 result=0;
+    while(count--) result+=*input++;
+    return result;
+}
+__attribute__((noinline)) s32 sum_signed_words(const s16 *input,u16 count) {
+    s32 result=0;
+    while(count--) result+=*input++;
+    return result;
+}
+__attribute__((noinline)) void copy_low_words(u16 *output,const u32 *input,u16 count) {
+    while(count--) *output++=*input++;
+}
+u16 word_values[32],word_results[34];
+u32 wide_values[32];
+"""
+    body,expected=['u32 result;'],[]
+    for count in [0,1,2,3,7,16,31,32]:
+        values=[(index*19317+count*8191)&65535 for index in range(32)]
+        body.extend(f'word_values[{index}]={value}; wide_values[{index}]={((index*7919+0x1234)<<16|value)&0xffffffff}u;' for index,value in enumerate(values))
+        body.extend([f'result=sum_unsigned_words(word_values,{count});','out[n++]=result;','out[n++]=result >> 16;',f'result=sum_signed_words((const s16 *)word_values,{count});','out[n++]=result;','out[n++]=result >> 16;'])
+        unsigned=sum(values[:count]);signed=sum(((value^0x8000)-0x8000) for value in values[:count])&0xffffffff
+        expected.extend([unsigned&65535,unsigned>>16,signed&65535,signed>>16])
+        body.extend(f'word_results[{index}]=0x7878;' for index in range(34))
+        body.extend(['word_results[0]=0x1234;',f'word_results[{count+1}]=0x2345;',f'copy_low_words(word_results+1,wide_values,{count});'])
+        body.extend(f'out[n++]=word_results[{index}];' for index in range(count+2))
+        expected.extend([0x1234,*values[:count],0x2345])
+    return source,body,expected
+
+
 def interpolate_case():
     source = """
 void silk_interpolate(s16 *,const s16 *,const s16 *,int,int);
@@ -297,6 +329,52 @@ kiss_fft_cpx fft_input[FFT_LENGTH], fft_output[FFT_LENGTH];
                              f'out[n++]=(u32)fft_output[{index}].{component} >> 16;'])
                 expected.extend([0, 0])
     return source, body, expected
+
+
+def mdct_case(size, stride, vector, frames):
+    length = size+60
+    source = '''
+#include "mdct.h"
+extern const opus_int16 eband5ms[];
+extern const unsigned char band_allocation[];
+#include "static_modes_fixed.h"
+static const mdct_lookup mdct_state = {
+    1920,3,{&fft_state48000_960_0,&fft_state48000_960_1,
+    &fft_state48000_960_2,&fft_state48000_960_3},mdct_twiddles960
+};
+'''
+    source += f'kiss_fft_scalar mdct_input[{size*stride+2}], mdct_output[{length+4}]={{0}};\n'
+    body = ['u32 sample;']
+    body.extend(f'mdct_output[{index}]={((index*19317+7919)%2097152)-1048576};' for index in range(1,length+1))
+    body.extend(['mdct_output[0]=0x12345678;',f'mdct_output[{length+1}]=0x23456789;',
+                 'mdct_input[0]=0x3456789a;',f'mdct_input[{size*stride+1}]=0x456789ab;'])
+    for frame in range(frames):
+        if frame:
+            body.extend(f'mdct_output[{index+1}]=mdct_output[{size+index+1}];' for index in range(60))
+        for index in range(size*stride):
+            if index % stride:
+                value = ((index*17957+frame*65537)%1048576)-524288
+            else:
+                position = index//stride
+                if vector == 0:
+                    value = (1<<20) if position == frame else 0
+                elif vector == 1:
+                    value = 32767 if (position+frame)&1 else -32768
+                elif vector == 5:
+                    value = 0
+                elif vector == 6:
+                    value = 0x3fffffff if (position+frame)&1 else -0x3fffffff
+                elif vector == 7:
+                    value = ((position+frame)%7)-3
+                else:
+                    value = ((position*7919+vector*131071+frame*193939)%2097152)-1048576
+            body.append(f'mdct_input[{index+1}]={value};')
+        shift = {120:3,240:2,480:1,960:0}[size]
+        body.append(f'clt_mdct_backward_c(&mdct_state,mdct_input+1,mdct_output+1,window120,120,{shift},{stride},0);')
+    body.extend([f'mdct_output[{length+2}]=mdct_input[0];',f'mdct_output[{length+3}]=mdct_input[{size*stride+1}];'])
+    for index in range(length+4):
+        body.extend([f'sample=(u32)mdct_output[{index}];','out[n++]=sample;','out[n++]=sample >> 16;'])
+    return source,body,[0]*(2*(length+4))
 
 
 def table_words_case():
@@ -454,28 +532,41 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', default='-O2')
     parser.add_argument('--label')
-    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate'], default='comparisons')
+    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct'], default='comparisons')
     parser.add_argument('--fft-size',type=int,choices=[60,120,240,480],default=60)
     parser.add_argument('--fft-vector',type=int,choices=range(5),default=0)
+    parser.add_argument('--mdct-size',type=int,choices=[120,240,480,960],default=120)
+    parser.add_argument('--mdct-stride',type=int,choices=[1,2,4,8],default=1)
+    parser.add_argument('--mdct-vector',type=int,choices=range(8),default=0)
+    parser.add_argument('--mdct-frames',type=int,choices=[1,2],default=2)
     args = parser.parse_args()
     BUILD.mkdir(parents=True, exist_ok=True)
-    factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'fft': fft_case, 'pointers': pointers_case, 'fft_math': fft_math_case, 'table_words': table_words_case, 'calls': calls_case, 'interpolate': interpolate_case}
-    if args.case == 'fft':
+    factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'fft': fft_case, 'pointers': pointers_case, 'fft_math': fft_math_case, 'table_words': table_words_case, 'calls': calls_case, 'interpolate': interpolate_case, 'word_memory': word_memory_case}
+    if args.case == 'mdct':
+        if args.mdct_size*args.mdct_stride>960:
+            parser.error('MDCT input exceeds test memory')
+        functions,body,expected=mdct_case(args.mdct_size,args.mdct_stride,args.mdct_vector,args.mdct_frames)
+    elif args.case == 'fft':
         functions, body, expected = fft_case(args.fft_size,args.fft_vector)
     elif args.case in factories:
         functions, body, expected = factories[args.case]()
     else:
         functions, body, expected = comparisons(args.case == 'simple')
     stem = args.case + (str(args.fft_size)+'v'+str(args.fft_vector) if args.case=='fft' else '') + args.opt.replace('-', '')
+    if args.case == 'mdct':
+        stem=f'mdct{args.mdct_size}s{args.mdct_stride}v{args.mdct_vector}f{args.mdct_frames}'+args.opt.replace('-','')
+    out_declaration=f'u16 out[{len(expected)}];'
+    if args.case == 'mdct':
+        out_declaration=f'extern u16 out[{len(expected)}] __attribute__((alias("mdct_output")));'
     source = BUILD / (stem + '.c')
     source.write_text('#include "kernels.h"\n#ifdef HOST_REFERENCE\n#include <stdio.h>\n#endif\n' + functions + '\nvolatile s16 input[] = {' + ','.join(map(str, VALUES)) + '};\n' +
-                      f'u16 out[{len(expected)}];\nint main(void) {{ u16 n=0;\n' + '\n'.join(body) +
+                      out_declaration+'\nint main(void) { u16 n=0;\n' + '\n'.join(body) +
                       f'\n#ifdef HOST_REFERENCE\nfwrite(out,2,{len(expected)},stdout);\n#else\n((volatile u16 *)0x3000)[2]=(u16)(unsigned)out;\n((volatile u16 *)0x3000)[3]={len(expected)};\n((volatile u16 *)0x3000)[0]=0x600d;\n#endif\nreturn 0; }}\n')
     flags = ['--target=teak', '-march=teak', args.opt, '-ffreestanding', '-fno-builtin', '-fno-strict-aliasing',
              '-ffunction-sections', '-fdata-sections', '-nostdlib', '-integrated-as', '-I'+str(HERE)]
     upstream_flags = ['-DFIXED_POINT', '-DOPUS_BUILD', '-DHAVE_STDINT_H', '-DHAVE_INTTYPES_H']
     includes = ['-I'+str(HERE/'include'), *['-I'+str(OPUS/p) for p in ['include','celt','silk','.']]]
-    if args.case in ['fft','fft_math']:
+    if args.case in ['fft','fft_math','mdct']:
         upstream_flags += ['-DNONTHREADSAFE_PSEUDOSTACK']
         flags += upstream_flags + includes
     objects = []
@@ -484,19 +575,19 @@ def main():
         command([CC, *flags, '-c', path, '-o', obj], path.stem+'.log')
         objects.append(obj)
     command([CC, *flags, '-S', source, '-o', BUILD / (stem+'.s')], stem+'-asm.log')
-    if args.case in ['clz', 'multiply', 'table_words', 'calls', 'interpolate']:
+    if args.case in ['clz', 'multiply', 'table_words', 'calls']:
         ir_source = HERE/('calls40.ll' if args.case == 'calls' else 'pointers.ll' if args.case == 'table_words' else 'clz40.ll' if args.case == 'clz' else 'multiply40.ll')
         obj = BUILD/(ir_source.stem+'.o')
         command([CC, '--target=teak', '-O2', '-integrated-as', '-c', ir_source, '-o', obj], ir_source.stem+'.log')
         objects.append(obj)
-    if args.case in ['sort', 'nlsf', 'silk_math', 'fft', 'interpolate']:
-        units = ['interpolate'] if args.case == 'interpolate' else ['kiss_fft'] if args.case == 'fft' else ['sum_sqr_shift', 'bwexpander_32', 'lin2log'] if args.case == 'silk_math' else ['sort'] + (['NLSF_stabilize'] if args.case == 'nlsf' else [])
-        directory = OPUS/('celt' if args.case == 'fft' else 'silk')
+    if args.case in ['sort', 'nlsf', 'silk_math', 'fft', 'interpolate','mdct']:
+        units = ['kiss_fft','mdct'] if args.case == 'mdct' else ['interpolate'] if args.case == 'interpolate' else ['kiss_fft'] if args.case == 'fft' else ['sum_sqr_shift', 'bwexpander_32', 'lin2log'] if args.case == 'silk_math' else ['sort'] + (['NLSF_stabilize'] if args.case == 'nlsf' else [])
+        directory = OPUS/('celt' if args.case in ['fft','mdct'] else 'silk')
         for name in units:
             obj = BUILD / (name+'.o')
             command([CC, *flags, *upstream_flags, *includes, '-c', directory/(name+'.c'), '-o', obj], name+'.log')
             objects.append(obj)
-        if args.case in ['nlsf', 'silk_math', 'fft', 'interpolate']:
+        if args.case in ['nlsf', 'silk_math', 'fft', 'interpolate','mdct']:
             host = BUILD/'host-reference'
             command(['cc', '-O2', '-fwrapv', '-DHOST_REFERENCE', '-I'+str(HERE), *upstream_flags,
                      *['-I'+str(OPUS/p) for p in ['include','celt','silk','.']], source,
@@ -510,7 +601,7 @@ def main():
         command(['g++', '-O2', '-std=c++17', '-I'+str(TEAKRA/'include'), HERE/'runner.cpp',
                  TEAKRA/'b/src/libteakra.a', '-o', runner], 'runner.log')
     reference = BUILD/(stem+'.pcm')
-    reference.write_bytes(reference_bytes if args.case in ['nlsf', 'silk_math', 'fft', 'interpolate'] else struct.pack('<'+'H'*len(expected), *[v & 65535 for v in expected]))
+    reference.write_bytes(reference_bytes if args.case in ['nlsf', 'silk_math', 'fft', 'interpolate','mdct'] else struct.pack('<'+'H'*len(expected), *[v & 65535 for v in expected]))
     result = subprocess.run([str(runner), str(elf), str(reference), str(BUILD/(stem+'-actual.pcm'))], capture_output=True, text=True)
     (BUILD/(stem+'-emulate.log')).write_text(result.stdout+result.stderr)
     if not result.stdout.strip():
@@ -521,6 +612,8 @@ def main():
         evidence = json.loads(result.stdout)
         if args.case=='fft':
             evidence.update(fft_size=args.fft_size,fft_vector=args.fft_vector)
+        if args.case=='mdct':
+            evidence.update(mdct_size=args.mdct_size,mdct_stride=args.mdct_stride,mdct_vector=args.mdct_vector,mdct_frames=args.mdct_frames)
         evidence.update(case=args.case, optimization=args.opt, diagnostics=result.stderr.splitlines(),
                         compiler=CC, physical_hardware=False)
         (BUILD/(args.label+'-'+stem+'.json')).write_text(json.dumps(evidence, indent=2)+'\n')

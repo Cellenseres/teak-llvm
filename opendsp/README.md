@@ -180,3 +180,22 @@ frontend fixes outside the split build. See `opendsp/validation/clean-fft-202610
 The workflow at that revision failed on its old assembler command; the local
 rerun explicitly selects the integrated assembler. Newer arithmetic and stack
 changes retain separate validation.
+
+The complete clean build at `4c485020ce03583ce30be47461508c6ea45850fc`
+also passes its CI regression suite: 32 cases and 24,413 result words.
+See `opendsp/validation/clean-ci-20261025.json`.
+
+Indexed word accesses now require an actual i16 result or stored value.
+Extending loads use ordinary addressing, since the indexed instruction patterns
+do not implement them. This allows the complete upstream Opus MDCT unit to
+compile. Fifteen standalone groups and two backward-MDCT cases pass 9,943
+words locally. See `opendsp/validation/indexed-words-20261025.json`.
+
+The MDCT harness compares original Opus code and mode tables against a host
+reference. It covers windowing, retained overlap, input strides, buffer guards,
+silence and scaling boundaries. Separate cases run one or two blocks. The full
+matrix has its own evidence; successful compilation alone is insufficient.
+
+Published main stops at `f9afa50c4b359aba51be2750fcd605a857535759`, containing
+only the four compiler patches shipped with OpenDSP v1.2.2. Newer compiler
+work remains local until publication is approved.
