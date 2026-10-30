@@ -102,6 +102,14 @@ TeakTargetLowering::TeakTargetLowering(const TeakTargetMachine &TeakTM)
 	setOperationAction(ISD::SUB, MVT::i16, Custom);
 	setOperationAction(ISD::MUL, MVT::i16, Custom);
 	setOperationAction(ISD::MUL, MVT::i40, Custom);
+	setOperationAction(ISD::MULHU, MVT::i40, Custom);
+	setOperationAction(ISD::MULHS, MVT::i40, Custom);
+	setOperationAction(ISD::MULHU, MVT::i16, Expand);
+	setOperationAction(ISD::MULHS, MVT::i16, Expand);
+	setOperationAction(ISD::UMUL_LOHI, MVT::i40, Expand);
+	setOperationAction(ISD::SMUL_LOHI, MVT::i40, Expand);
+	setOperationAction(ISD::UMUL_LOHI, MVT::i16, Expand);
+	setOperationAction(ISD::SMUL_LOHI, MVT::i16, Expand);
 	setOperationAction(ISD::LOAD, MVT::i64, Custom);
 	setOperationAction(ISD::STORE, MVT::i64, Custom);
 	setOperationAction(ISD::CTLZ, MVT::i16, Custom);
@@ -136,6 +144,7 @@ TeakTargetLowering::TeakTargetLowering(const TeakTargetMachine &TeakTM)
 	setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i1, Expand);
 
 	setOperationAction(ISD::Constant, MVT::i32, Promote);
+	setOperationAction(ISD::Constant, MVT::i40, Custom);
 	setOperationAction(ISD::Constant, MVT::i8, Promote);
 
 	// setOperationAction(ISD::SIGN_EXTEND, MVT::i40, Expand);
@@ -586,6 +595,65 @@ SDValue TeakTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
 			SDValue NewOp1 = DAG.getNode(ISD::ANY_EXTEND, dl, MVT::i40, N->getOperand(1));
 			SDValue NewWOp = DAG.getNode(nodeType, dl, MVT::i40, NewOp0, NewOp1);
   			return DAG.getNode(ISD::TRUNCATE, dl, MVT::i16, NewWOp);
+		}
+		case ISD::Constant:
+		{
+			const APInt &Value = cast<ConstantSDNode>(Op)->getAPIntValue();
+			if (Value.isIntN(32) || Value.isSignedIntN(32))
+				return Op;
+			SDLoc Location(Op);
+			SDValue Upper = DAG.getConstant(Value.lshr(16), Location, MVT::i40);
+			SDValue Lower = DAG.getConstant(Value.getZExtValue() & 65535, Location, MVT::i40);
+			SDValue Shifted = DAG.getNode(TeakISD::SHIFT_ARITH, Location, MVT::i40,
+				Upper, DAG.getConstant(16, Location, MVT::i16));
+			return DAG.getNode(TeakISD::OR, Location, MVT::i40, Shifted, Lower);
+		}
+		case ISD::MULHU:
+		case ISD::MULHS:
+		{
+			SDLoc Location(Op);
+			SDValue LeftOperand = Op.getOperand(0);
+			SDValue RightOperand = Op.getOperand(1);
+			SDValue LeftDigits[4], RightDigits[4];
+			SDValue Mask = DAG.getConstant(1023, Location, MVT::i40);
+			SDValue DigitWidth = DAG.getConstant(10, Location, MVT::i40);
+			for (unsigned Index = 0; Index < 4; ++Index) {
+				SDValue Shift = DAG.getConstant(Index * 10, Location, MVT::i40);
+				LeftDigits[Index] = DAG.getNode(ISD::TRUNCATE, Location, MVT::i16,
+					DAG.getNode(ISD::AND, Location, MVT::i40,
+						DAG.getNode(ISD::SRL, Location, MVT::i40, LeftOperand, Shift), Mask));
+				RightDigits[Index] = DAG.getNode(ISD::TRUNCATE, Location, MVT::i16,
+					DAG.getNode(ISD::AND, Location, MVT::i40,
+						DAG.getNode(ISD::SRL, Location, MVT::i40, RightOperand, Shift), Mask));
+			}
+			SDValue Carry = DAG.getConstant(0, Location, MVT::i40);
+			SDValue Result = Carry;
+			for (unsigned Column = 0; Column < 8; ++Column) {
+				SDValue Partial = Carry;
+				for (unsigned Index = 0; Index < 4; ++Index) {
+					if (Column < Index || Column - Index >= 4)
+						continue;
+					Partial = DAG.getNode(ISD::ADD, Location, MVT::i40, Partial,
+						DAG.getNode(TeakISD::MPY, Location, MVT::i40,
+							LeftDigits[Index], RightDigits[Column - Index]));
+				}
+				Carry = DAG.getNode(ISD::SRL, Location, MVT::i40, Partial, DigitWidth);
+				if (Column >= 4)
+					Result = DAG.getNode(ISD::OR, Location, MVT::i40, Result,
+						DAG.getNode(ISD::SHL, Location, MVT::i40,
+							DAG.getNode(ISD::AND, Location, MVT::i40, Partial, Mask),
+							DAG.getConstant((Column - 4) * 10, Location, MVT::i40)));
+			}
+			if (Op.getOpcode() == ISD::MULHS) {
+				SDValue SignShift = DAG.getConstant(39, Location, MVT::i40);
+				SDValue LeftSign = DAG.getNode(ISD::SRA, Location, MVT::i40, LeftOperand, SignShift);
+				SDValue RightSign = DAG.getNode(ISD::SRA, Location, MVT::i40, RightOperand, SignShift);
+				Result = DAG.getNode(ISD::SUB, Location, MVT::i40, Result,
+					DAG.getNode(ISD::AND, Location, MVT::i40, LeftSign, RightOperand));
+				Result = DAG.getNode(ISD::SUB, Location, MVT::i40, Result,
+					DAG.getNode(ISD::AND, Location, MVT::i40, RightSign, LeftOperand));
+			}
+			return Result;
 		}
 		case ISD::MUL:
 		{

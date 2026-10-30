@@ -154,14 +154,7 @@ int scaling;
     return source, body, expected
 
 
-def multiply_case():
-    source = '''
-__attribute__((noinline)) u32 multiply32(u32 left, u32 right) { return left*right; }
-__attribute__((noinline)) u16 multiply16(u16 left, u16 right) { return left*right; }
-u16 multiply40(const u16 *, const u16 *, u16);
-u16 multiply_signed40(const u16 *, const u16 *, u16);
-'''
-    inputs, body, expected = [], [], []
+def multiply_pairs():
     values = [0, 1, 2, 0x7fff, 0x8000, 0xffff, 0x10000, 0x7fffffff,
               0x80000000, 0xffffffff, 0x100000000, 0x7fffffffff,
               0x8000000000, 0xffffffffff]
@@ -172,7 +165,18 @@ u16 multiply_signed40(const u16 *, const u16 *, u16);
         left = state
         state = (state*6364136223846793005+1442695040888963407) & 0xffffffffff
         pairs.append((left, state))
-    for left, right in pairs:
+    return pairs
+
+
+def multiply_case():
+    source = '''
+__attribute__((noinline)) u32 multiply32(u32 left, u32 right) { return left*right; }
+__attribute__((noinline)) u16 multiply16(u16 left, u16 right) { return left*right; }
+u16 multiply40(const u16 *, const u16 *, u16);
+u16 multiply_signed40(const u16 *, const u16 *, u16);
+'''
+    inputs, body, expected = [], [], []
+    for left, right in multiply_pairs():
         index = len(inputs)
         inputs.extend([(value >> shift) & 65535 for value in [left, right] for shift in [0, 16, 32]])
         body.append(f'out[n++] = multiply16(multiply_inputs[{index}], multiply_inputs[{index+3}]);')
@@ -192,6 +196,42 @@ u16 multiply_signed40(const u16 *, const u16 *, u16);
     source += '\nvolatile u16 multiply_inputs[] = {' + ','.join(map(str, inputs)) + '};\n'
     body.insert(0, 'u32 product;')
     return source, body, expected
+
+
+def high_product_case():
+    source = '''
+u16 high_unsigned40(const u16 *,const u16 *,u16);
+u16 high_signed40(const u16 *,const u16 *,u16);
+u16 divide_unsigned40(const u16 *,u16);
+u16 divide_signed40(const u16 *,u16);
+u16 wide_constant40(u16,u16);
+'''
+    inputs,body,expected=[],[],[]
+    mask=(1<<40)-1
+    def signed(value):
+        return (value^(1<<39))-(1<<39)
+    for left,right in multiply_pairs():
+        index=len(inputs)
+        inputs.extend((value>>shift)&65535 for value in [left,right] for shift in [0,16,32])
+        signed_left=signed(left)
+        quotient=abs(signed_left)//5
+        if signed_left<0:
+            quotient=-quotient
+        values=[(left*right)>>40,(signed_left*signed(right))>>40,left//5,quotient]
+        for function,value in zip(['high_unsigned40','high_signed40','divide_unsigned40','divide_signed40'],values):
+            for shift in [0,16,32]:
+                arguments=f'(const u16 *)high_inputs+{index},'
+                if function.startswith('high_'):
+                    arguments+=f'(const u16 *)high_inputs+{index+3},'
+                body.append(f'out[n++]={function}({arguments}{shift});')
+                expected.append(((value&mask)>>shift)&65535)
+    source+='volatile u16 high_inputs[]={'+','.join(map(str,inputs))+'};\n'
+    constants=sorted({left for left,right in multiply_pairs()})
+    for index,value in enumerate(constants):
+        for shift in [0,16,32]:
+            body.append(f'out[n++]=wide_constant40({index},{shift});')
+            expected.append((value>>shift)&65535)
+    return source,body,expected
 
 
 def word_memory_case():
@@ -532,7 +572,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', default='-O2')
     parser.add_argument('--label')
-    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct'], default='comparisons')
+    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product'], default='comparisons')
     parser.add_argument('--fft-size',type=int,choices=[60,120,240,480],default=60)
     parser.add_argument('--fft-vector',type=int,choices=range(5),default=0)
     parser.add_argument('--mdct-size',type=int,choices=[120,240,480,960],default=120)
@@ -541,7 +581,7 @@ def main():
     parser.add_argument('--mdct-frames',type=int,choices=[1,2],default=2)
     args = parser.parse_args()
     BUILD.mkdir(parents=True, exist_ok=True)
-    factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'fft': fft_case, 'pointers': pointers_case, 'fft_math': fft_math_case, 'table_words': table_words_case, 'calls': calls_case, 'interpolate': interpolate_case, 'word_memory': word_memory_case}
+    factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'fft': fft_case, 'pointers': pointers_case, 'fft_math': fft_math_case, 'table_words': table_words_case, 'calls': calls_case, 'interpolate': interpolate_case, 'word_memory': word_memory_case, 'high_product': high_product_case}
     if args.case == 'mdct':
         if args.mdct_size*args.mdct_stride>960:
             parser.error('MDCT input exceeds test memory')
@@ -575,8 +615,8 @@ def main():
         command([CC, *flags, '-c', path, '-o', obj], path.stem+'.log')
         objects.append(obj)
     command([CC, *flags, '-S', source, '-o', BUILD / (stem+'.s')], stem+'-asm.log')
-    if args.case in ['clz', 'multiply', 'table_words', 'calls']:
-        ir_source = HERE/('calls40.ll' if args.case == 'calls' else 'pointers.ll' if args.case == 'table_words' else 'clz40.ll' if args.case == 'clz' else 'multiply40.ll')
+    if args.case in ['clz', 'multiply', 'table_words', 'calls', 'high_product']:
+        ir_source = HERE/('high_product40.ll' if args.case == 'high_product' else 'calls40.ll' if args.case == 'calls' else 'pointers.ll' if args.case == 'table_words' else 'clz40.ll' if args.case == 'clz' else 'multiply40.ll')
         obj = BUILD/(ir_source.stem+'.o')
         command([CC, '--target=teak', '-O2', '-integrated-as', '-c', ir_source, '-o', obj], ir_source.stem+'.log')
         objects.append(obj)

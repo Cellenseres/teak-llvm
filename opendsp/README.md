@@ -203,6 +203,17 @@ values and large coefficients exercise scaling. See
 `opendsp/validation/mdct-20261025.json`. This validates the inverse transform,
 not packet decoding or physical playback.
 
+High products now support both signed and unsigned 40-bit operands. Ten-bit
+digits keep each native multiplier input positive and preserve the full carry.
+Constants beyond 32 bits retain their upper byte; previously the immediate
+patterns silently dropped it. That affected signed division and comparisons.
+
+The new group passes 3,834 words, including 110 complete constants, boundary
+products and division by five. All current standalone groups, 20 FFT cases
+and four additional MDCT cases pass 33,473 words. See
+`opendsp/validation/high-products-20261025.json`. General i80 arithmetic is not
+supported; the product tests use LLVM fixed-point intrinsics.
+
 Published main stops at `f9afa50c4b359aba51be2750fcd605a857535759`, containing
 only the four compiler patches shipped with OpenDSP v1.2.2. Newer compiler
 work remains local until publication is approved.
