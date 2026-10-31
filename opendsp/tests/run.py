@@ -513,6 +513,45 @@ static const mdct_lookup mdct_state = {
     return source,body,[0]*(2*(length+4))
 
 
+def size_types_case():
+    source='''
+__attribute__((noinline)) u32 variable_size(u16 count,u32 scale) {
+    typedef u32 row[count];
+    u32 bytes=sizeof(row);
+    return bytes*scale;
+}
+u16 size_grid[64];
+__attribute__((noinline)) u32 variable_stride(u16 width,u16 index,u16 column,u32 scale) {
+    u16 (*rows)[width]=(void *)size_grid;
+    rows+=index;
+    return (*rows)[column]+sizeof(*rows)*scale;
+}
+__attribute__((noinline)) u32 variable_subscript(u16 width,u16 index,u16 column,u32 scale) {
+    u16 (*rows)[width]=(void *)size_grid;
+    return rows[index][column]+sizeof(*rows)*scale;
+}
+'''
+    body,expected=['u32 result;'],[]
+    for index in range(64):
+        body.append(f'size_grid[{index}]={1000+index*193};')
+    for count in [1,3,17,16383,16384,32768,65535]:
+        for scale in [1,3,65537,0xffffffff]:
+            value=(count*4*scale)&0xffffffff
+            body.extend([f'result=variable_size({count},{scale}u);','out[n++]=result;','out[n++]=result >> 16;'])
+            expected.extend([value&65535,value>>16])
+    for width in [1,2,3,7,8]:
+        for row in [0,1,3]:
+            for column in [0,width-1]:
+                value=(1000+(row*width+column)*193+width*2*0x12345678)&0xffffffff
+                for function in ['variable_stride','variable_subscript']:
+                    body.extend([f'result={function}({width},{row},{column},0x12345678u);','out[n++]=result;','out[n++]=result >> 16;'])
+                    expected.extend([value&65535,value>>16])
+    body.extend(['out[n++]=sizeof(void *);','out[n++]=sizeof(void (*)(void));',
+                 'out[n++]=sizeof(__SIZE_TYPE__);','out[n++]=sizeof(__PTRDIFF_TYPE__);'])
+    expected.extend([2,4,4,4])
+    return source,body,expected
+
+
 def dynamic_stack_case():
     source='''
 __attribute__((noinline)) u32 sum_dynamic(const u16 *values,u16 count,u16 first,u16 second,u16 third,u16 fourth) {
@@ -847,7 +886,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', default='-O2')
     parser.add_argument('--label')
-    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct', 'division', 'range_decoder', 'byte_order', 'dynamic_stack'], default='comparisons')
+    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct', 'division', 'range_decoder', 'byte_order', 'dynamic_stack', 'size_types'], default='comparisons')
     parser.add_argument('--max-steps',type=int,default=3000000)
     parser.add_argument('--vorbis-size',type=int,choices=[64,128,256,512,1024,2048,4096,8192],default=64)
     parser.add_argument('--vorbis-vector',type=int,choices=range(5),default=0)
@@ -862,7 +901,9 @@ def main():
     factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'fft': fft_case, 'pointers': pointers_case, 'fft_math': fft_math_case, 'table_words': table_words_case, 'calls': calls_case, 'interpolate': interpolate_case, 'word_memory': word_memory_case, 'high_product': high_product_case}
     if args.max_steps < 1:
         parser.error('Step limit must be positive')
-    if args.case == 'dynamic_stack':
+    if args.case == 'size_types':
+        functions,body,expected=size_types_case()
+    elif args.case == 'dynamic_stack':
         functions,body,expected=dynamic_stack_case()
     elif args.case == 'byte_order':
         functions,body,expected=byte_order_case()

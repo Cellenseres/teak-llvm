@@ -3327,6 +3327,7 @@ static Value *emitPointerArithmetic(CodeGenFunction &CGF,
         = CGF.getContext().getAsVariableArrayType(elementType)) {
     // The element count here is the total number of non-VLA elements.
     llvm::Value *numElements = CGF.getVLASize(vla).NumElts;
+    numElements = CGF.Builder.CreateIntCast(numElements, index->getType(), false);
 
     // Effectively, the multiply by the VLA size is part of the GEP.
     // GEP indexes are signed, and scaling an index isn't permitted to

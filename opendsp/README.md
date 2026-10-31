@@ -290,3 +290,17 @@ allocations, eight-byte alignment, scoped VLAs, guards and six-argument calls.
 The related O2 call, stack and memory checks bring this run to 1,905 words.
 See `opendsp/validation/dynamic-stack-20261025.json`. Allocation limits for a
 production decoder remain separate from compiler support.
+
+Teak reports a maximum pointer width of 32 bits while retaining 16-bit data
+pointers. This keeps Clang's cached size types consistent with size_t and
+program pointers. VLA pointer arithmetic casts the element count to the index
+type before scaling. The dedicated group checks 180 words, including large
+variable sizes, indexing, pointer advancement and both pointer representations.
+
+The locally rebuilt frontend and backend pass 47 cases and 46,291 words, plus
+the 16,388-word largest Vorbis-transform case. Seventeen of 23 decoder units
+compile, including Vorbis sharedbook. The firmware builds to 246,696 bytes,
+with 194,942 text bytes; both multiplier scans pass. Its SHA-256 is
+`6bf212400f345d7b51d0fe95cf2469124330d47bc46e42855bf085cc95f8660a`.
+See `opendsp/validation/size-types-20261025.json`. The production prebuilt and
+compiler publication baseline remain unchanged.

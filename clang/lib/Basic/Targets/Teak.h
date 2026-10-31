@@ -46,6 +46,8 @@ public:
 
   ArrayRef<Builtin::Info> getTargetBuiltins() const override { return None; }
 
+  uint64_t getMaxPointerWidth() const override { return 32; }
+
   BuiltinVaListKind getBuiltinVaListKind() const override {
     return TargetInfo::VoidPtrBuiltinVaList;
   }
