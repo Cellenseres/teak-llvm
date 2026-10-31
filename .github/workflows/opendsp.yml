@@ -72,6 +72,9 @@ jobs:
           python3 opendsp/tests/run.py --case interpolate --label ci
           python3 opendsp/tests/run.py --case word_memory --label ci
           python3 opendsp/tests/run.py --case byte_memory --label ci
+          python3 opendsp/tests/run.py --case division --max-steps 50000000 --label ci
+          python3 opendsp/tests/run.py --case range_decoder --max-steps 50000000 --label ci
+          python3 opendsp/tests/run.py --case byte_order --label ci
           python3 opendsp/tests/run.py --case table_words --label ci
           python3 opendsp/tests/run.py --case pointers --label ci
           python3 opendsp/tests/run.py --case fft_math --label ci
@@ -118,3 +121,4 @@ jobs:
             build/bin/llc
             build/bin/llvm-readelf
             build/lib/clang/11.0.0/include
+            build/lib/teak/libteak_rt.a

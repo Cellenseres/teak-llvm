@@ -110,6 +110,12 @@ TeakTargetLowering::TeakTargetLowering(const TeakTargetMachine &TeakTM)
 	setOperationAction(ISD::SMUL_LOHI, MVT::i40, Expand);
 	setOperationAction(ISD::UMUL_LOHI, MVT::i16, Expand);
 	setOperationAction(ISD::SMUL_LOHI, MVT::i16, Expand);
+	for (MVT ValueType : {MVT::i16, MVT::i40}) {
+		for (unsigned Opcode : {ISD::UDIV, ISD::UREM, ISD::SDIV, ISD::SREM})
+			setOperationAction(Opcode, ValueType, Custom);
+		setOperationAction(ISD::UDIVREM, ValueType, Expand);
+		setOperationAction(ISD::SDIVREM, ValueType, Expand);
+	}
 	setOperationAction(ISD::LOAD, MVT::i64, Custom);
 	setOperationAction(ISD::STORE, MVT::i64, Custom);
 	setOperationAction(ISD::CTLZ, MVT::i16, Custom);
@@ -397,6 +403,39 @@ static TeakCC::CondCodes IntCondCCodeToICC(ISD::CondCode CC)
 	}
 }
 
+static SDValue lowerWideComparison(SDValue Left, SDValue Right, ISD::CondCode Condition,
+    const SDLoc &Location, SelectionDAG &DAG) {
+	if (Left.getValueType() != MVT::i40 || Condition == ISD::SETEQ || Condition == ISD::SETNE)
+		return SDValue();
+	bool Unsigned = ISD::isUnsignedIntSetCC(Condition);
+	if (Unsigned ? (DAG.SignBitIsZero(Left) && DAG.SignBitIsZero(Right))
+		: (isNullConstant(Right) || (DAG.ComputeNumSignBits(Left) >= 2 &&
+			DAG.ComputeNumSignBits(Right) >= 2)))
+		return SDValue();
+	SDValue Shift = DAG.getConstant(32, Location, MVT::i40);
+	SDValue Mask = DAG.getConstant(UINT64_C(0xffffffff), Location, MVT::i40);
+	SDValue LeftHigh = DAG.getNode(Unsigned ? ISD::SRL : ISD::SRA, Location, MVT::i40, Left, Shift);
+	SDValue RightHigh = DAG.getNode(Unsigned ? ISD::SRL : ISD::SRA, Location, MVT::i40, Right, Shift);
+	SDValue LeftLow = DAG.getNode(ISD::AND, Location, MVT::i40, Left, Mask);
+	SDValue RightLow = DAG.getNode(ISD::AND, Location, MVT::i40, Right, Mask);
+	ISD::CondCode LowCondition = Condition;
+	if (LowCondition == ISD::SETLT) LowCondition = ISD::SETULT;
+	if (LowCondition == ISD::SETLE) LowCondition = ISD::SETULE;
+	if (LowCondition == ISD::SETGT) LowCondition = ISD::SETUGT;
+	if (LowCondition == ISD::SETGE) LowCondition = ISD::SETUGE;
+	auto Compare = [&](SDValue First, SDValue Second, ISD::CondCode Code) {
+		SDValue Flag = DAG.getNode(Code == ISD::SETEQ ? TeakISD::CMPZICC : TeakISD::CMPICC,
+			Location, MVT::Glue, First, Second);
+		return DAG.getNode(TeakISD::SELECT_ICC, Location, MVT::i16,
+			DAG.getConstant(1, Location, MVT::i16), DAG.getConstant(0, Location, MVT::i16),
+			DAG.getConstant(IntCondCCodeToICC(Code), Location, MVT::i40), Flag);
+	};
+	SDValue EqualHigh = Compare(LeftHigh, RightHigh, ISD::SETEQ);
+	SDValue CompareHigh = Compare(LeftHigh, RightHigh, Condition);
+	SDValue CompareLow = Compare(LeftLow, RightLow, LowCondition);
+	return DAG.getSelect(Location, MVT::i16, EqualHigh, CompareLow, CompareHigh);
+}
+
 SDValue TeakTargetLowering::LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const
 {
 	SDValue LHS = Op.getOperand(0);
@@ -410,6 +449,14 @@ SDValue TeakTargetLowering::LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const
 	// If this is a select_cc of a "setcc", and if the setcc got lowered into
 	// an CMP[IF]CC/SELECT_[IF]CC pair, find the original compared values.
 	lookThroughSetCC(LHS, RHS, CC, SPCC);
+	if (SPCC == ~0U) {
+		SDValue Comparison = lowerWideComparison(LHS, RHS, CC, dl, DAG);
+		if (Comparison) {
+			LHS = Comparison;
+			RHS = DAG.getConstant(0, dl, MVT::i16);
+			CC = ISD::SETNE;
+		}
+	}
 
 	bool unsgn = false;
 	if(CC == ISD::SETULT || CC == ISD::SETULE || CC == ISD::SETUGT || CC == ISD::SETUGE)
@@ -448,6 +495,14 @@ SDValue TeakTargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const
 	// If this is a br_cc of a "setcc", and if the setcc got lowered into
 	// an CMP[IF]CC/SELECT_[IF]CC pair, find the original compared values.
 	lookThroughSetCC(LHS, RHS, CC, SPCC);
+	if (SPCC == ~0U) {
+		SDValue Comparison = lowerWideComparison(LHS, RHS, CC, dl, DAG);
+		if (Comparison) {
+			LHS = Comparison;
+			RHS = DAG.getConstant(0, dl, MVT::i16);
+			CC = ISD::SETNE;
+		}
+	}
 
 	bool unsgn = false;
 	if(CC == ISD::SETULT || CC == ISD::SETULE || CC == ISD::SETUGT || CC == ISD::SETUGE)
@@ -484,6 +539,35 @@ SDValue TeakTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
 	// Op.dump(&DAG);
 	switch (Op.getOpcode()) 
 	{
+		case ISD::UDIV:
+		case ISD::UREM:
+		case ISD::SDIV:
+		case ISD::SREM: {
+			bool Signed = Op.getOpcode() == ISD::SDIV || Op.getOpcode() == ISD::SREM;
+			bool Remainder = Op.getOpcode() == ISD::UREM || Op.getOpcode() == ISD::SREM;
+			const char *Name = Signed ? (Remainder ? "__teak_srem40" : "__teak_sdiv40")
+				: (Remainder ? "__teak_urem40" : "__teak_udiv40");
+			SDLoc Location(Op);
+			Type *ValueType = IntegerType::get(*DAG.getContext(), 40);
+			ArgListTy Arguments;
+			for (unsigned Index = 0; Index < 2; ++Index) {
+				SDValue Value = Op.getOperand(Index);
+				if (Value.getValueType() != MVT::i40)
+					Value = DAG.getNode(Signed ? ISD::SIGN_EXTEND : ISD::ZERO_EXTEND,
+						Location, MVT::i40, Value);
+				ArgListEntry Argument;
+				Argument.Node = Value;
+				Argument.Ty = ValueType;
+				Arguments.push_back(Argument);
+			}
+			CallLoweringInfo Call(DAG);
+			Call.setDebugLoc(Location).setChain(DAG.getEntryNode())
+				.setLibCallee(CallingConv::C, ValueType,
+					DAG.getExternalSymbol(Name, MVT::i16), std::move(Arguments))
+				.setIsPostTypeLegalization(true);
+			SDValue Result = LowerCallTo(Call).first;
+			return DAG.getZExtOrTrunc(Result, Location, Op.getValueType());
+		}
 		case ISD::ConstantPool: {
 			ConstantPoolSDNode *Pool = cast<ConstantPoolSDNode>(Op);
 			SDValue Address = DAG.getTargetConstantPool(Pool->getConstVal(), MVT::i16,

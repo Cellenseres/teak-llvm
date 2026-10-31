@@ -513,6 +513,113 @@ static const mdct_lookup mdct_state = {
     return source,body,[0]*(2*(length+4))
 
 
+def byte_order_case():
+    values={0,1,0xffffffff,0x7fffffff,0x80000000,0x12345678,0x89abcdef}
+    values.update(1<<bit for bit in range(32))
+    state=0x1f123bb5
+    for _ in range(64):
+        state=(state*1664525+1013904223)&0xffffffff
+        values.add(state)
+    source='__attribute__((noinline)) u32 swap_word(u32 value) {return __builtin_bswap32(value);}\n'
+    source+='volatile u32 byte_order_inputs[]={'+','.join(str(value)+'u' for value in sorted(values))+'};\n'
+    body,expected=['u32 result;'],[]
+    for index,value in enumerate(sorted(values)):
+        body.extend([f'result=swap_word(byte_order_inputs[{index}]);','out[n++]=result;','out[n++]=result >> 16;'])
+        reversed_value=int.from_bytes(value.to_bytes(4,'little'),'big')
+        expected.extend([reversed_value&65535,reversed_value>>16])
+    return source,body,expected
+
+
+def range_decoder_case():
+    source = '''
+#include "entdec.h"
+ec_dec range_decoder;
+unsigned char range_packet[258];
+const unsigned char range_icdf[]={240,200,160,128,80,32,8,0};
+const u16 range_lengths[]={0,1,2,7,31,64,127,255};
+const u32 range_frequencies[]={3,5,7,31,255,1000,32767,65535};
+const u32 range_bounds[]={2,3,255,256,257,65535,0x80000001u,0xffffffffu};
+'''
+    body=['u16 pattern,index,length_index,iteration;', 'u32 result,total;',
+          'range_packet[0]=0xa5; range_packet[257]=0x5a;',
+          'for(pattern=0;pattern<4;++pattern) {',
+          'for(index=0;index<256;++index)',
+          'range_packet[index+1]=pattern==0 ? 0 : pattern==1 ? 255 : pattern==2 ? index : ((index*197+53)^((index+17)*29));',
+          'for(length_index=0;length_index<8;++length_index) {',
+          'ec_dec_init(&range_decoder,range_packet+1,range_lengths[length_index]);',
+          'for(iteration=0;iteration<8;++iteration) {',
+          'total=range_frequencies[iteration];',
+          'result=ec_decode(&range_decoder,total);',
+          'out[n++]=result; out[n++]=result >> 16;',
+          'ec_dec_update(&range_decoder,result,result+1,total);',
+          'total=1u << (iteration+1);',
+          'result=ec_decode_bin(&range_decoder,iteration+1);',
+          'out[n++]=result; out[n++]=result >> 16;',
+          'ec_dec_update(&range_decoder,result,result+1,total);']
+    expressions=['ec_dec_bit_logp(&range_decoder,iteration+1)',
+                 'ec_dec_icdf(&range_decoder,range_icdf,8)',
+                 'ec_dec_bits(&range_decoder,iteration*3)',
+                 'ec_dec_uint(&range_decoder,range_bounds[iteration])',
+                 'ec_tell(&range_decoder)','ec_tell_frac(&range_decoder)',
+                 'range_decoder.rng','range_decoder.val','range_decoder.offs',
+                 'range_decoder.end_offs','range_decoder.error']
+    for expression in expressions:
+        body.extend([f'result={expression};','out[n++]=result; out[n++]=result >> 16;'])
+    body.extend(['}', '}', 'out[n++]=range_packet[0]; out[n++]=range_packet[257];', '}'])
+    return source,body,[0]*(4*8*8*2*(2+len(expressions))+8)
+
+
+def division_case():
+    source = '''
+__attribute__((noinline)) u16 unsigned_divide16(u16 left,u16 right) {return left/right;}
+__attribute__((noinline)) u16 unsigned_remainder16(u16 left,u16 right) {return left%right;}
+__attribute__((noinline)) s16 signed_divide16(s16 left,s16 right) {return left/right;}
+__attribute__((noinline)) s16 signed_remainder16(s16 left,s16 right) {return left%right;}
+__attribute__((noinline)) u32 unsigned_divide32(u32 left,u32 right) {return left/right;}
+__attribute__((noinline)) u32 unsigned_remainder32(u32 left,u32 right) {return left%right;}
+__attribute__((noinline)) s32 signed_divide32(s32 left,s32 right) {return left/right;}
+__attribute__((noinline)) s32 signed_remainder32(s32 left,s32 right) {return left%right;}
+u16 divide40(const u16 *,u16,u16);
+'''
+    body,expected=['u32 result;'],[]
+    for width in [16,32,40]:
+        mask=(1<<width)-1
+        values=sorted({0,1,2,7,0x7fff,0x8000,0x7fffffff&mask,0x80000000&mask,
+                       (1<<(width-1))-1,1<<(width-1),mask-1,mask,
+                       0x13579bdf97&mask,0xabcde13759&mask})
+        if width != 40:
+            source+=f'volatile u{width} division{width}_inputs[]={{'+','.join(str(value)+'u' for value in values)+'};\n'
+        packed=[]
+        for left_index,left in enumerate(values):
+            for right_index,right in enumerate(values):
+                if not right:
+                    continue
+                offset=len(packed)
+                if width == 40:
+                    packed.extend((value>>shift)&65535 for value in [left,right] for shift in [0,16,32])
+                signed_left=left-(1<<width) if left&(1<<(width-1)) else left
+                signed_right=right-(1<<width) if right&(1<<(width-1)) else right
+                for operation in range(4):
+                    if operation>=2 and signed_left==-(1<<(width-1)) and signed_right==-1:
+                        continue
+                    if operation<2:
+                        result=left//right if operation==0 else left%right
+                    else:
+                        quotient=(abs(signed_left)//abs(signed_right))*(-1 if (signed_left<0)!=(signed_right<0) else 1)
+                        result=quotient if operation==2 else signed_left-quotient*signed_right
+                    shifts=range(0,width,16)
+                    if width==40:
+                        body.extend(f'out[n++]=divide40((const u16 *)division40_inputs+{offset},{operation},{shift});' for shift in shifts)
+                    else:
+                        function=['unsigned_divide','unsigned_remainder','signed_divide','signed_remainder'][operation]+str(width)
+                        body.append(f'result={function}(division{width}_inputs[{left_index}],division{width}_inputs[{right_index}]);')
+                        body.extend(f'out[n++]=result >> {shift};' for shift in shifts)
+                    expected.extend(((result&mask)>>shift)&65535 for shift in shifts)
+        if width==40:
+            source+='volatile u16 division40_inputs[]={'+','.join(map(str,packed))+'};\n'
+    return source,body,expected
+
+
 def vorbis_mdct_case(size, vector):
     source = '#include "mdct.h"\n' + f's32 vorbis_output[{size+2}]={{0}};\n'
     values = ['0', '(index == 0 ? 1048576 : 0)',
@@ -684,7 +791,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', default='-O2')
     parser.add_argument('--label')
-    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct'], default='comparisons')
+    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct', 'division', 'range_decoder', 'byte_order'], default='comparisons')
     parser.add_argument('--max-steps',type=int,default=3000000)
     parser.add_argument('--vorbis-size',type=int,choices=[64,128,256,512,1024,2048,4096,8192],default=64)
     parser.add_argument('--vorbis-vector',type=int,choices=range(5),default=0)
@@ -699,7 +806,13 @@ def main():
     factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'fft': fft_case, 'pointers': pointers_case, 'fft_math': fft_math_case, 'table_words': table_words_case, 'calls': calls_case, 'interpolate': interpolate_case, 'word_memory': word_memory_case, 'high_product': high_product_case}
     if args.max_steps < 1:
         parser.error('Step limit must be positive')
-    if args.case == 'vorbis_mdct':
+    if args.case == 'byte_order':
+        functions,body,expected=byte_order_case()
+    elif args.case == 'range_decoder':
+        functions,body,expected=range_decoder_case()
+    elif args.case == 'division':
+        functions,body,expected=division_case()
+    elif args.case == 'vorbis_mdct':
         functions,body,expected=vorbis_mdct_case(args.vorbis_size,args.vorbis_vector)
     elif args.case == 'byte_memory':
         functions,body,expected=byte_memory_case()
@@ -734,7 +847,7 @@ def main():
              '-ffunction-sections', '-fdata-sections', '-nostdlib', '-integrated-as', '-I'+str(HERE)]
     upstream_flags = ['-DFIXED_POINT', '-DOPUS_BUILD', '-DHAVE_STDINT_H', '-DHAVE_INTTYPES_H']
     includes = ['-I'+str(HERE/'include'), *['-I'+str(OPUS/p) for p in ['include','celt','silk','.']]]
-    if args.case in ['fft','fft_math','mdct']:
+    if args.case in ['fft','fft_math','mdct','range_decoder']:
         upstream_flags += ['-DNONTHREADSAFE_PSEUDOSTACK']
         flags += upstream_flags + includes
     vorbis_includes=['-I'+str(HERE/'config'),'-I'+str(OGG/'include'),'-I'+str(TREMOR)]
@@ -747,19 +860,26 @@ def main():
         command([CC, *flags, '-c', path, '-o', obj], path.stem+'.log')
         objects.append(obj)
     command([CC, *flags, '-S', source, '-o', BUILD / (stem+'.s')], stem+'-asm.log')
+    paths=[HERE.parent/'runtime/divide.ll']
+    if args.case=='division':
+        paths.append(HERE/'division40.ll')
+    for path in paths:
+        obj=BUILD/(path.stem+'.o')
+        command([CC,'--target=teak','-O2','-integrated-as','-ffunction-sections','-c',path,'-o',obj],path.stem+'.log')
+        objects.append(obj)
     if args.case in ['clz', 'multiply', 'table_words', 'calls', 'high_product']:
         ir_source = HERE/('high_product40.ll' if args.case == 'high_product' else 'calls40.ll' if args.case == 'calls' else 'pointers.ll' if args.case == 'table_words' else 'clz40.ll' if args.case == 'clz' else 'multiply40.ll')
         obj = BUILD/(ir_source.stem+'.o')
         command([CC, '--target=teak', '-O2', '-integrated-as', '-c', ir_source, '-o', obj], ir_source.stem+'.log')
         objects.append(obj)
-    if args.case in ['sort', 'nlsf', 'silk_math', 'fft', 'interpolate','mdct']:
-        units = ['kiss_fft','mdct'] if args.case == 'mdct' else ['interpolate'] if args.case == 'interpolate' else ['kiss_fft'] if args.case == 'fft' else ['sum_sqr_shift', 'bwexpander_32', 'lin2log'] if args.case == 'silk_math' else ['sort'] + (['NLSF_stabilize'] if args.case == 'nlsf' else [])
-        directory = OPUS/('celt' if args.case in ['fft','mdct'] else 'silk')
+    if args.case in ['sort', 'nlsf', 'silk_math', 'fft', 'interpolate','mdct','range_decoder']:
+        units = ['entdec','entcode'] if args.case=='range_decoder' else ['kiss_fft','mdct'] if args.case == 'mdct' else ['interpolate'] if args.case == 'interpolate' else ['kiss_fft'] if args.case == 'fft' else ['sum_sqr_shift', 'bwexpander_32', 'lin2log'] if args.case == 'silk_math' else ['sort'] + (['NLSF_stabilize'] if args.case == 'nlsf' else [])
+        directory = OPUS/('celt' if args.case in ['fft','mdct','range_decoder'] else 'silk')
         for name in units:
             obj = BUILD / (name+'.o')
             command([CC, *flags, *upstream_flags, *includes, '-c', directory/(name+'.c'), '-o', obj], name+'.log')
             objects.append(obj)
-        if args.case in ['nlsf', 'silk_math', 'fft', 'interpolate','mdct']:
+        if args.case in ['nlsf', 'silk_math', 'fft', 'interpolate','mdct','range_decoder']:
             host = BUILD/'host-reference'
             command(['cc', '-O2', '-fwrapv', '-DHOST_REFERENCE', '-I'+str(HERE), *upstream_flags,
                      *['-I'+str(OPUS/p) for p in ['include','celt','silk','.']], source,
@@ -789,7 +909,7 @@ def main():
         command(['g++', '-O2', '-std=c++17', '-I'+str(TEAKRA/'include'), HERE/'runner.cpp',
                  TEAKRA/'b/src/libteakra.a', '-o', runner], 'runner.log')
     reference = BUILD/(stem+'.pcm')
-    reference.write_bytes(reference_bytes if args.case in ['nlsf', 'silk_math', 'fft', 'interpolate','mdct','vorbis_mdct'] else struct.pack('<'+'H'*len(expected), *[v & 65535 for v in expected]))
+    reference.write_bytes(reference_bytes if args.case in ['nlsf', 'silk_math', 'fft', 'interpolate','mdct','vorbis_mdct','range_decoder'] else struct.pack('<'+'H'*len(expected), *[v & 65535 for v in expected]))
     result = subprocess.run([str(runner), str(elf), str(reference), str(BUILD/(stem+'-actual.pcm')),str(args.max_steps),str(mailbox)], capture_output=True, text=True)
     (BUILD/(stem+'-emulate.log')).write_text(result.stdout+result.stderr)
     if not result.stdout.strip():

@@ -404,6 +404,19 @@ SDValue DAGTypeLegalizer::PromoteIntRes_BSWAP(SDNode *N) {
 
   unsigned DiffBits = NVT.getScalarSizeInBits() - OVT.getScalarSizeInBits();
   EVT ShiftVT = getShiftAmountTyForConstant(NVT, TLI, DAG);
+  if (NVT.getScalarSizeInBits() % 16 != 0) {
+    SDValue Result = DAG.getConstant(0, dl, NVT);
+    unsigned Width = OVT.getScalarSizeInBits();
+    for (unsigned Offset = 0; Offset < Width; Offset += 8) {
+      SDValue Octet = DAG.getNode(ISD::SRL, dl, NVT, Op,
+          DAG.getConstant(Offset, dl, ShiftVT));
+      Octet = DAG.getNode(ISD::AND, dl, NVT, Octet, DAG.getConstant(255, dl, NVT));
+      Octet = DAG.getNode(ISD::SHL, dl, NVT, Octet,
+          DAG.getConstant(Width - 8 - Offset, dl, ShiftVT));
+      Result = DAG.getNode(ISD::OR, dl, NVT, Result, Octet);
+    }
+    return Result;
+  }
   return DAG.getNode(ISD::SRL, dl, NVT, DAG.getNode(ISD::BSWAP, dl, NVT, Op),
                      DAG.getConstant(DiffBits, dl, ShiftVT));
 }

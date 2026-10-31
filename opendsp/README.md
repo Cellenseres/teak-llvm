@@ -256,3 +256,26 @@ Full packet decoding remains incomplete. Byte-containing C records still
 require a consistent layout. Dynamic scratch, general division and decoder
 scheduling remain separate work. The locally rebuilt compiler is not a clean
 complete build, and no physical New 3DS validation is claimed.
+
+General signed and unsigned division use the 40-bit runtime. Normalization
+aligns the divisor and skips unnecessary iterations. Link
+`build/lib/teak/libteak_rt.a` after application objects. `opendsp/build.sh`
+builds that library; `opendsp/runtime/build.sh` also runs separately.
+The library includes the indirect-call entry.
+
+Full-width comparisons split the high byte and lower 32 bits. This avoids
+overflow in the DSP's signed subtraction flags. Division checks cover 16,
+32 and 40 bits, including negative operands and boundary values. All 3,588
+words match; normalization reduces the same run from 43,464,836 to 8,705,034
+emulator steps. Archive linking produces identical results.
+
+The original Opus range decoder passes 6,664 reference words across 32 packet
+contexts. Checks cover front and reverse byte reads, interval updates, inverse
+CDF tables, raw bits, bounded integers, bit counts, internal state and guards.
+This is entropy-decoder validation, not full Opus packet reconstruction.
+
+The complete division candidate passes 44 cases and 45,769 words. Existing
+firmware stays byte-identical, with both multiplier scans passing. See
+`opendsp/validation/division-20261025.json`. A subsequent byte-swap promotion
+fix avoids invalid 40-bit BSWAP nodes and passes another 202 words, recorded
+separately in `opendsp/validation/byte-order-20261025.json`.

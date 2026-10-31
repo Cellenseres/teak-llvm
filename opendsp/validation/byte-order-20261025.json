@@ -1,0 +1,18 @@
+{
+  "completed": true,
+  "comparisons": 202,
+  "errors": 0,
+  "steps": 2956,
+  "step_limit": 3000000,
+  "mailbox": 12288,
+  "case": "byte_order",
+  "optimization": "-O2",
+  "diagnostics": [],
+  "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+  "physical_hardware": false,
+  "base_commit": "96b7545b8ac",
+  "compiler_kind": "Locally rebuilt frontend and backend",
+  "clean_build": false,
+  "compiler_sha256": "75ecfc3e5e9f68fe0af1a9a70f77c6ab852a098d0dbe71cfd9489ad5d92f9fa2",
+  "change": "Promote byte swaps through octets when the wider register width is not a multiple of sixteen"
+}

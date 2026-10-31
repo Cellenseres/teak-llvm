@@ -9,4 +9,5 @@ cmake -S "$ROOT/llvm" -B "$ROOT/build" -G Ninja \
     -DCMAKE_CXX_FLAGS="-include cstdint -include limits -Wno-everything" \
     -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF \
     -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_PARALLEL_LINK_JOBS=1
-ninja -C "$ROOT/build" -j "${BUILD_JOBS:-2}" clang lld llc llvm-readelf FileCheck
+ninja -C "$ROOT/build" -j "${BUILD_JOBS:-2}" clang lld llc llvm-ar llvm-readelf FileCheck
+sh "$ROOT/opendsp/runtime/build.sh"
