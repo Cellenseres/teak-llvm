@@ -21,6 +21,8 @@ jobs:
         run: sh opendsp/build.sh
       - name: Predicate assembly regression
         run: build/bin/llc -mtriple=teak -O2 -asm-verbose=false llvm/test/CodeGen/Teak/predicate-flags.ll -o - | build/bin/FileCheck llvm/test/CodeGen/Teak/predicate-flags.ll
+      - name: Large pointer offsets
+        run: build/bin/llc -mtriple=teak -O2 llvm/test/CodeGen/Teak/large-gep.ll -o - | build/bin/FileCheck llvm/test/CodeGen/Teak/large-gep.ll
       - uses: actions/checkout@v4
         with:
           repository: wwylele/teakra
@@ -32,6 +34,17 @@ jobs:
           repository: xiph/opus
           ref: 22244de5a79bd1d6d623c32e72bf1954b56235be
           path: inputs/opus
+      - uses: actions/checkout@v4
+        with:
+          repository: xiph/ogg
+          ref: e1774cd77f471443541596e09078e78fdc342e4f
+          path: inputs/libogg
+      - name: Get the pinned Vorbis decoder
+        run: |
+          git init inputs/tremor
+          git -C inputs/tremor remote add origin https://gitlab.xiph.org/xiph/tremor.git
+          git -C inputs/tremor fetch --depth 1 origin 820fb3237ea81af44c9cc468c8b4e20128e3e5ad
+          git -C inputs/tremor checkout --detach FETCH_HEAD
       - name: Build the pinned DSP emulator
         run: |
           cmake -S inputs/teakra -B inputs/teakra/b -G Ninja -DCMAKE_BUILD_TYPE=Release -DTEAKRA_BUILD_UNIT_TESTS=OFF -DTEAKRA_BUILD_TOOLS=OFF -DTEAKRA_WARNINGS_AS_ERRORS=OFF
@@ -58,6 +71,7 @@ jobs:
           python3 opendsp/tests/run.py --case callback --opt=-O1 --label ci
           python3 opendsp/tests/run.py --case interpolate --label ci
           python3 opendsp/tests/run.py --case word_memory --label ci
+          python3 opendsp/tests/run.py --case byte_memory --label ci
           python3 opendsp/tests/run.py --case table_words --label ci
           python3 opendsp/tests/run.py --case pointers --label ci
           python3 opendsp/tests/run.py --case fft_math --label ci
@@ -76,6 +90,11 @@ jobs:
             done
             for vector in 0 2 5 6 7; do
               python3 opendsp/tests/run.py --case mdct --mdct-size "$length" --mdct-vector "$vector" --mdct-frames 1 --label ci
+            done
+          done
+          for length in 64 128 256 512 1024 2048 4096 8192; do
+            for vector in 0 1 2 3 4; do
+              python3 opendsp/tests/run.py --case vorbis_mdct --vorbis-size "$length" --vorbis-vector "$vector" --max-steps 100000000 --label ci
             done
           done
       - name: Preserve test evidence

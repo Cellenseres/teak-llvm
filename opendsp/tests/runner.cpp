@@ -2,6 +2,7 @@
 #include <teakra/teakra.h>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <iterator>
@@ -13,7 +14,10 @@ static std::vector<unsigned char> read(const char *path) {
 }
 
 int main(int argc, char **argv) {
-    if (argc != 4) return 2;
+    if (argc < 4 || argc > 6) return 2;
+    std::uint64_t step_limit = argc >= 5 ? std::strtoull(argv[4],nullptr,0) : 3000000;
+    unsigned mailbox = argc >= 6 ? std::strtoul(argv[5],nullptr,0) : 0x3000;
+    if (!step_limit || mailbox > 0xfffc) return 2;
     auto image = read(argv[1]), expected = read(argv[2]);
     if (image.size() < 52 || expected.size() % 2 || std::memcmp(image.data(), "\177ELF", 4)) return 2;
     auto get32 = [&](unsigned offset) {
@@ -41,18 +45,18 @@ int main(int argc, char **argv) {
     }
     auto words = reinterpret_cast<const std::uint16_t *>(dsp.GetDspMemory() + 0x40000);
     std::uint64_t steps = 0;
-    while (words[0x3000] != 0x600d && steps < 3000000) {
+    while (words[mailbox] != 0x600d && steps < step_limit) {
         dsp.Run(1);
         ++steps;
     }
     unsigned errors = 0, count = expected.size()/2;
-    bool completed = words[0x3000] == 0x600d;
-    if (words[0x3003] != count) ++errors;
-    if (words[0x3002] + count > 0x10000) return 2;
+    bool completed = words[mailbox] == 0x600d;
+    if (words[mailbox+3] != count) ++errors;
+    if (words[mailbox+2] + count > 0x10000) return 2;
     std::ofstream actual(argv[3], std::ios::binary);
     for (unsigned i = 0; i < count; ++i) {
         unsigned want = expected[2*i] | (unsigned(expected[2*i+1]) << 8);
-        unsigned got = words[words[0x3002] + i];
+        unsigned got = words[words[mailbox+2] + i];
         actual.put(got & 255);
         actual.put(got >> 8);
         if (want != got) {

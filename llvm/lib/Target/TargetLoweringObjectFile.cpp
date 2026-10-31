@@ -195,13 +195,16 @@ SectionKind TargetLoweringObjectFile::getKindForGlobal(const GlobalObject *GO,
           if ((ITy->getBitWidth() == 8 || ITy->getBitWidth() == 16 ||
                ITy->getBitWidth() == 32) &&
               IsNullTerminatedString(C)) {
-            if (ITy->getBitWidth() == 8)
+            switch (GVar->getParent()->getDataLayout().getTypeAllocSize(ITy)) {
+            case 1:
               return SectionKind::getMergeable1ByteCString();
-            if (ITy->getBitWidth() == 16)
+            case 2:
               return SectionKind::getMergeable2ByteCString();
-
-            assert(ITy->getBitWidth() == 32 && "Unknown width");
-            return SectionKind::getMergeable4ByteCString();
+            case 4:
+              return SectionKind::getMergeable4ByteCString();
+            default:
+              return SectionKind::getReadOnly();
+            }
           }
         }
       }

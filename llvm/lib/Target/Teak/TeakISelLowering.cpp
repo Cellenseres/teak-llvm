@@ -216,24 +216,24 @@ TeakTargetLowering::TeakTargetLowering(const TeakTargetMachine &TeakTM)
 
 	setLoadExtAction(ISD::EXTLOAD, MVT::i16, MVT::i1, Promote);
 	setLoadExtAction(ISD::EXTLOAD, MVT::i40, MVT::i1, Promote);
-	setLoadExtAction(ISD::EXTLOAD, MVT::i16, MVT::i8, Promote);
-	setLoadExtAction(ISD::EXTLOAD, MVT::i40, MVT::i8, Promote);
+	setLoadExtAction(ISD::EXTLOAD, MVT::i16, MVT::i8, Custom);
+	setLoadExtAction(ISD::EXTLOAD, MVT::i40, MVT::i8, Custom);
 	setLoadExtAction(ISD::ZEXTLOAD, MVT::i16, MVT::i1, Promote);
 	setLoadExtAction(ISD::ZEXTLOAD, MVT::i40, MVT::i1, Promote);
-	setLoadExtAction(ISD::ZEXTLOAD, MVT::i16, MVT::i8, Promote);
-	setLoadExtAction(ISD::ZEXTLOAD, MVT::i40, MVT::i8, Promote);
+	setLoadExtAction(ISD::ZEXTLOAD, MVT::i16, MVT::i8, Custom);
+	setLoadExtAction(ISD::ZEXTLOAD, MVT::i40, MVT::i8, Custom);
 	setLoadExtAction(ISD::SEXTLOAD, MVT::i16, MVT::i1, Promote);
 	setLoadExtAction(ISD::SEXTLOAD, MVT::i40, MVT::i1, Promote);
-	setLoadExtAction(ISD::SEXTLOAD, MVT::i16, MVT::i8, Promote);
-	setLoadExtAction(ISD::SEXTLOAD, MVT::i40, MVT::i8, Promote);
+	setLoadExtAction(ISD::SEXTLOAD, MVT::i16, MVT::i8, Custom);
+	setLoadExtAction(ISD::SEXTLOAD, MVT::i40, MVT::i8, Custom);
 
 	setTruncStoreAction(MVT::i40, MVT::i1, Expand);
 	setTruncStoreAction(MVT::i32, MVT::i1, Expand);
 	setTruncStoreAction(MVT::i16, MVT::i1, Expand);
 	setTruncStoreAction(MVT::i8, MVT::i1, Expand);
-	setTruncStoreAction(MVT::i40, MVT::i8, Expand);
+	setTruncStoreAction(MVT::i40, MVT::i8, Custom);
 	setTruncStoreAction(MVT::i32, MVT::i8, Expand);
-	setTruncStoreAction(MVT::i16, MVT::i8, Expand);
+	setTruncStoreAction(MVT::i16, MVT::i8, Custom);
 }
 
 // SDValue TeakTargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) const
@@ -314,9 +314,19 @@ bool TeakTargetLowering::getPostIndexedAddressParts(SDNode* N, SDNode* Op,
 bool TeakTargetLowering::allowsMemoryAccess(LLVMContext &Context, const DataLayout &DL, EVT VT, unsigned AddrSpace,
 	unsigned Alignment, MachineMemOperand::Flags Flags, bool *Fast) const
 {
-	if(VT.getSizeInBits() != 16 && VT.getSizeInBits() != 32)
+	if (VT != MVT::i16 && VT != MVT::i32)
 		return false;
 	return TargetLowering::allowsMemoryAccess(Context, DL, VT, AddrSpace, Alignment, Flags, Fast);
+}
+
+bool TeakTargetLowering::allowsMisalignedMemoryAccesses(EVT VT, unsigned AddressSpace,
+    unsigned Alignment, MachineMemOperand::Flags Flags, bool *Fast) const {
+	// Pointers always address complete words.
+	if (VT != MVT::i16)
+		return false;
+	if (Fast)
+		*Fast = true;
+	return true;
 }
 
 bool TeakTargetLowering::shouldReduceLoadWidth(SDNode* Load, ISD::LoadExtType ExtTy, EVT NewVT) const
@@ -482,6 +492,23 @@ SDValue TeakTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
 		}
 		case ISD::LOAD: {
 			LoadSDNode *Load = cast<LoadSDNode>(Op);
+			if (Load->getMemoryVT() == MVT::i8) {
+				assert(!Load->isAtomic() && !Load->isIndexed());
+				SDLoc Location(Op);
+				SDValue Word = DAG.getLoad(MVT::i16, Location, Load->getChain(), Load->getBasePtr(),
+					Load->getPointerInfo(), Load->getAlignment(),
+					Load->getMemOperand()->getFlags(), Load->getAAInfo());
+				SDValue Value = DAG.getNode(ISD::AND, Location, MVT::i16, Word,
+					DAG.getConstant(255, Location, MVT::i16));
+				bool Signed = Load->getExtensionType() == ISD::SEXTLOAD;
+				if (Signed)
+					Value = DAG.getNode(ISD::SIGN_EXTEND_INREG, Location, MVT::i16, Value,
+						DAG.getValueType(MVT::i8));
+				if (Load->getValueType(0) == MVT::i40)
+					Value = DAG.getNode(Signed ? ISD::SIGN_EXTEND : ISD::ZERO_EXTEND,
+						Location, MVT::i40, Value);
+				return DAG.getMergeValues({Value, Word.getValue(1)}, Location);
+			}
 			if (Load->getAlignment() >= 4 && Load->getExtensionType() != ISD::ZEXTLOAD)
 				return SDValue();
 			SDLoc Location(Op);
@@ -506,6 +533,15 @@ SDValue TeakTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
 			StoreSDNode *Store = cast<StoreSDNode>(Op);
 			SDLoc Location(Op);
 			unsigned Width = Store->getMemoryVT().getSizeInBits();
+			if (Width == 8) {
+				assert(!Store->isAtomic() && !Store->isIndexed());
+				SDValue Word = DAG.getZExtOrTrunc(Store->getValue(), Location, MVT::i16);
+				Word = DAG.getNode(ISD::AND, Location, MVT::i16, Word,
+					DAG.getConstant(255, Location, MVT::i16));
+				return DAG.getStore(Store->getChain(), Location, Word, Store->getBasePtr(),
+					Store->getPointerInfo(), Store->getAlignment(),
+					Store->getMemOperand()->getFlags(), Store->getAAInfo());
+			}
 			if (Width == 32 && Store->getAlignment() >= 4)
 				return SDValue();
 			assert((Width == 32 || Width == 64) && !Store->isAtomic());

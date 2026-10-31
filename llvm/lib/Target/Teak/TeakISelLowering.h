@@ -61,6 +61,9 @@ public:
   bool allowsMemoryAccess(LLVMContext &Context, const DataLayout &DL, EVT VT, unsigned AddrSpace,
 	    unsigned Alignment, MachineMemOperand::Flags Flags, bool *Fast) const override;
 
+  bool allowsMisalignedMemoryAccesses(EVT VT, unsigned AddressSpace,
+      unsigned Alignment, MachineMemOperand::Flags Flags, bool *Fast) const override;
+
   bool shouldReduceLoadWidth(SDNode* Load, ISD::LoadExtType ExtTy, EVT NewVT) const override;
 
   EVT getOptimalMemOpType(uint64_t Size, unsigned DstAlign, unsigned SrcAlign,

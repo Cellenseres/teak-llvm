@@ -3915,7 +3915,12 @@ void SelectionDAGBuilder::visitGetElementPtr(const User &I) {
     } else {
       unsigned IdxSize = DAG.getDataLayout().getIndexSizeInBits(AS);
       MVT IdxTy = MVT::getIntegerVT(IdxSize);
-      APInt ElementSize(IdxSize, DL->getTypeAllocSize(GTI.getIndexedType()));
+      uint64_t StorageSize = DL->getTypeAllocSize(GTI.getIndexedType());
+      if (TM.getTargetTriple().getArch() == Triple::teak) {
+        assert((StorageSize & 1) == 0 && "Element size is not word-aligned");
+        StorageSize >>= 1;
+      }
+      APInt ElementSize(IdxSize, StorageSize);
 
       // If this is a scalar constant or a splat vector of constants,
       // handle it quickly.
@@ -3927,14 +3932,6 @@ void SelectionDAGBuilder::visitGetElementPtr(const User &I) {
         if (CI->isZero())
           continue;
         APInt Offs = ElementSize * CI->getValue().sextOrTrunc(IdxSize);
-        if(TM.getTargetTriple().getArch() == Triple::teak)
-        {
-            assert((Offs & 1) == 0 && "Offs is not word-aligned!");
-            dbgs() << "Offs = Offs.ashr(1);\n";
-            dbgs() << Offs << "\n";
-            Offs = Offs.ashr(1);
-            dbgs() << Offs << "\n";
-        }
         LLVMContext &Context = *DAG.getContext();
         SDValue OffsVal = VectorWidth ?
           DAG.getConstant(Offs, dl, EVT::getVectorVT(Context, IdxTy, VectorWidth)) :
@@ -3964,42 +3961,16 @@ void SelectionDAGBuilder::visitGetElementPtr(const User &I) {
       // it.
       IdxN = DAG.getSExtOrTrunc(IdxN, dl, N.getValueType());
 
-      if(TM.getTargetTriple().getArch() == Triple::teak)
-      {
-          assert((ElementSize.getZExtValue() & 1) == 0 && "ElementSize is not word-aligned!");
-          // If this is a multiply by a power of two, turn it into a shl
-          // immediately.  This is a very common case.
-          if ((ElementSize.getZExtValue() >> 1) != 1) {
-            if (ElementSize.isPowerOf2()) {
-              unsigned Amt = ElementSize.logBase2() - 1;
-              IdxN = DAG.getNode(ISD::SHL, dl,
-                                N.getValueType(), IdxN,
-                                DAG.getConstant(Amt, dl, IdxN.getValueType()));
-            } else {
-              SDValue Scale = DAG.getConstant(ElementSize.getZExtValue() >> 1, dl,
-                                              IdxN.getValueType());
-              IdxN = DAG.getNode(ISD::MUL, dl,
-                                N.getValueType(), IdxN, Scale);
-            }
-          }
-      }
-      else
-      {
-          // If this is a multiply by a power of two, turn it into a shl
-          // immediately.  This is a very common case.
-          if (ElementSize != 1) {
-            if (ElementSize.isPowerOf2()) {
-              unsigned Amt = ElementSize.logBase2();
-              IdxN = DAG.getNode(ISD::SHL, dl,
-                                N.getValueType(), IdxN,
-                                DAG.getConstant(Amt, dl, IdxN.getValueType()));
-            } else {
-              SDValue Scale = DAG.getConstant(ElementSize.getZExtValue(), dl,
-                                              IdxN.getValueType());
-              IdxN = DAG.getNode(ISD::MUL, dl,
-                                N.getValueType(), IdxN, Scale);
-            }
-          }
+      if (ElementSize != 1) {
+        if (ElementSize.isPowerOf2()) {
+          unsigned Amt = ElementSize.logBase2();
+          IdxN = DAG.getNode(ISD::SHL, dl, N.getValueType(), IdxN,
+                            DAG.getConstant(Amt, dl, IdxN.getValueType()));
+        } else {
+          SDValue Scale = DAG.getConstant(ElementSize.getZExtValue(), dl,
+                                          IdxN.getValueType());
+          IdxN = DAG.getNode(ISD::MUL, dl, N.getValueType(), IdxN, Scale);
+        }
       }
 
       N = DAG.getNode(ISD::ADD, dl,

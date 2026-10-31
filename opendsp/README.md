@@ -234,3 +234,25 @@ rebuild and physical playback validation remain separate requirements.
 Published main stops at `f9afa50c4b359aba51be2750fcd605a857535759`, containing
 only the four compiler patches shipped with OpenDSP v1.2.2. Newer compiler
 work remains local until publication is approved.
+
+Byte loads and stores use complete words, with explicit eight-bit masking and
+sign extension. Constant byte arrays retain their allocated stride. String
+sections use physical element widths, so the linker preserves padded strings.
+Pointer scaling now precedes truncation, including offsets beyond 32 KiB.
+
+All 42 compiler cases pass 35,517 result words. The existing firmware remains
+byte-identical to the 246,672-byte candidate above; both multiplier scans pass.
+See `opendsp/validation/byte-storage-20261025.json`.
+
+The original full-accuracy Tremor inverse transform passes 40 cases and 163,360
+words. Every supported size from 64 to 8192 is checked with silence, impulses,
+alternating coefficients, mixed coefficients and small values. Buffer guards
+also match. Scalar word order is big-endian; the host uses its native order.
+The largest observed run takes 25,489,586 emulator steps. These are neither
+physical cycle counts nor a playback benchmark. See
+`opendsp/validation/vorbis-mdct-20261025.json`.
+
+Full packet decoding remains incomplete. Byte-containing C records still
+require a consistent layout. Dynamic scratch, general division and decoder
+scheduling remain separate work. The locally rebuilt compiler is not a clean
+complete build, and no physical New 3DS validation is claimed.

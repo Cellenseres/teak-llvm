@@ -13,6 +13,8 @@ CC = os.environ.get('TEAK_CC', 'clang')
 LD = os.environ.get('TEAK_LD', 'ld.lld')
 TEAKRA = Path(os.environ.get('TEAKRA', 'teakra')).resolve()
 OPUS = Path(os.environ.get('OPUS_SOURCE', 'opus')).resolve()
+TREMOR = Path(os.environ.get('TREMOR_SOURCE', str(OPUS.parent/'tremor'))).resolve()
+OGG = Path(os.environ.get('OGG_SOURCE', str(OPUS.parent/'libogg'))).resolve()
 
 BUILD = Path(os.environ.get('TEAK_TEST_BUILD', str(HERE/'build'))).resolve()
 VALUES = [-32768, -32767, -1024, -1, 0, 1, 1024, 32766, 32767]
@@ -294,6 +296,40 @@ __attribute__((noinline)) u32 invoke_callback(callback_function function,u32 fir
     return source,body,expected
 
 
+def byte_memory_case():
+    values=[(index*7919+0x9abcdeff)&0xffffffff for index in range(256)]
+    source='''
+typedef unsigned char u8;
+typedef signed char s8;
+__attribute__((noinline)) u16 read_byte(const u8 *input,u16 index) {return input[index];}
+__attribute__((noinline)) s16 read_signed_byte(const s8 *input,u16 index) {return input[index];}
+__attribute__((noinline)) u32 read_wide_byte(const u8 *input,u16 index) {return input[index];}
+__attribute__((noinline)) s32 read_wide_signed_byte(const s8 *input,u16 index) {return input[index];}
+__attribute__((noinline)) void write_byte(u8 *output,u16 index,u32 value) {output[index]=value;}
+__attribute__((noinline)) const u8 *read_text(void) {return (const u8 *)"Silk";}
+u8 byte_output[258];
+const u8 byte_text[]="Vorbis/Opus";
+'''
+    source+='const u8 byte_table[]={'+','.join(map(str,range(256)))+'};\n'
+    source+='const u8 repeated_bytes[]={'+','.join(['127']*17)+'};\n'
+    source+='volatile u32 byte_inputs[]={'+','.join(str(value)+'u' for value in values)+'};\n'
+    body,expected=['u32 result;'],[]
+    for value in range(256):
+        body.extend([f'out[n++]=read_byte(byte_table,{value});',f'out[n++]=read_signed_byte((const s8 *)byte_table,{value});',
+                     f'result=read_wide_byte(byte_table,{value});','out[n++]=result;','out[n++]=result >> 16;',
+                     f'result=read_wide_signed_byte((const s8 *)byte_table,{value});','out[n++]=result;','out[n++]=result >> 16;'])
+        signed=(value^128)-128
+        expected.extend([value,signed&65535,value,0,signed&65535,(signed>>16)&65535])
+    body.extend(['write_byte(byte_output,0,0x12);','write_byte(byte_output,257,0x34);'])
+    body.extend(f'write_byte(byte_output,{index+1},byte_inputs[{index}]);' for index in range(256))
+    body.extend(f'out[n++]=read_byte(byte_output,{index});' for index in range(258))
+    expected.extend([0x12,*[value&255 for value in values],0x34])
+    for table,values in [('repeated_bytes',[127]*17),('byte_text',list(b'Vorbis/Opus\0')),('read_text()',list(b'Silk\0'))]:
+        body.extend(f'out[n++]=read_byte({table},{index});' for index in range(len(values)))
+        expected.extend(values)
+    return source,body,expected
+
+
 def word_memory_case():
     source = """
 __attribute__((noinline)) u32 sum_unsigned_words(const u16 *input,u16 count) {
@@ -477,6 +513,22 @@ static const mdct_lookup mdct_state = {
     return source,body,[0]*(2*(length+4))
 
 
+def vorbis_mdct_case(size, vector):
+    source = '#include "mdct.h"\n' + f's32 vorbis_output[{size+2}]={{0}};\n'
+    values = ['0', '(index == 0 ? 1048576 : 0)',
+              '(index & 1 ? 1048576 : -1048576)',
+              '((index*7919+393213)%2097152)-1048576', '(index&7)-3']
+    body = ['u16 index;', 'u32 sample;', 'vorbis_output[0]=0x12345678;',
+            f'vorbis_output[{size+1}]=0x23456789;',
+            f'for(index=0;index<{size};++index) vorbis_output[index+1]=0x13579bdf;',
+            f'for(index=0;index<{size//2};++index) vorbis_output[index+1]={values[vector]};',
+            f'mdct_backward({size},vorbis_output+1,vorbis_output+1);',
+            f'for(index=0;index<{size+2};++index) {{',
+            'sample=(u32)vorbis_output[index];',
+            'out[n++]=sample;', 'out[n++]=sample >> 16;', '}']
+    return source,body,[0]*(2*(size+2))
+
+
 def table_words_case():
     source,body,expected=pointers_case()
     source=source.replace('u16 pointer_values[9] = {0x1234,0x2345,0x3456,0x4567,0x5678,0x6789,0x789a,0x89ab,0x9abc};','extern u16 pointer_values[9];')
@@ -632,7 +684,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', default='-O2')
     parser.add_argument('--label')
-    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback'], default='comparisons')
+    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct'], default='comparisons')
+    parser.add_argument('--max-steps',type=int,default=3000000)
+    parser.add_argument('--vorbis-size',type=int,choices=[64,128,256,512,1024,2048,4096,8192],default=64)
+    parser.add_argument('--vorbis-vector',type=int,choices=range(5),default=0)
     parser.add_argument('--fft-size',type=int,choices=[60,120,240,480],default=60)
     parser.add_argument('--fft-vector',type=int,choices=range(5),default=0)
     parser.add_argument('--mdct-size',type=int,choices=[120,240,480,960],default=120)
@@ -642,7 +697,13 @@ def main():
     args = parser.parse_args()
     BUILD.mkdir(parents=True, exist_ok=True)
     factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'fft': fft_case, 'pointers': pointers_case, 'fft_math': fft_math_case, 'table_words': table_words_case, 'calls': calls_case, 'interpolate': interpolate_case, 'word_memory': word_memory_case, 'high_product': high_product_case}
-    if args.case == 'callback':
+    if args.max_steps < 1:
+        parser.error('Step limit must be positive')
+    if args.case == 'vorbis_mdct':
+        functions,body,expected=vorbis_mdct_case(args.vorbis_size,args.vorbis_vector)
+    elif args.case == 'byte_memory':
+        functions,body,expected=byte_memory_case()
+    elif args.case == 'callback':
         functions,body,expected=callback_case()
     elif args.case == 'mdct':
         if args.mdct_size*args.mdct_stride>960:
@@ -657,13 +718,18 @@ def main():
     stem = args.case + (str(args.fft_size)+'v'+str(args.fft_vector) if args.case=='fft' else '') + args.opt.replace('-', '')
     if args.case == 'mdct':
         stem=f'mdct{args.mdct_size}s{args.mdct_stride}v{args.mdct_vector}f{args.mdct_frames}'+args.opt.replace('-','')
+    if args.case == 'vorbis_mdct':
+        stem=f'vorbis_mdct{args.vorbis_size}v{args.vorbis_vector}'+args.opt.replace('-','')
     out_declaration=f'u16 out[{len(expected)}];'
     if args.case == 'mdct':
         out_declaration=f'extern u16 out[{len(expected)}] __attribute__((alias("mdct_output")));'
+    if args.case == 'vorbis_mdct':
+        out_declaration=f'extern u16 out[{len(expected)}] __attribute__((alias("vorbis_output")));'
+    mailbox=0x7000 if args.case=='vorbis_mdct' else 0x3000
     source = BUILD / (stem + '.c')
     source.write_text('#include "kernels.h"\n#ifdef HOST_REFERENCE\n#include <stdio.h>\n#endif\n' + functions + '\nvolatile s16 input[] = {' + ','.join(map(str, VALUES)) + '};\n' +
                       out_declaration+'\nint main(void) { u16 n=0;\n' + '\n'.join(body) +
-                      f'\n#ifdef HOST_REFERENCE\nfwrite(out,2,{len(expected)},stdout);\n#else\n((volatile u16 *)0x3000)[2]=(u16)(unsigned)out;\n((volatile u16 *)0x3000)[3]={len(expected)};\n((volatile u16 *)0x3000)[0]=0x600d;\n#endif\nreturn 0; }}\n')
+                      f'\n#ifdef HOST_REFERENCE\nfwrite(out,2,{len(expected)},stdout);\n#else\n((volatile u16 *){mailbox})[2]=(u16)(unsigned)out;\n((volatile u16 *){mailbox})[3]={len(expected)};\n((volatile u16 *){mailbox})[0]=0x600d;\n#endif\nreturn 0; }}\n')
     flags = ['--target=teak', '-march=teak', args.opt, '-ffreestanding', '-fno-builtin', '-fno-strict-aliasing',
              '-ffunction-sections', '-fdata-sections', '-nostdlib', '-integrated-as', '-I'+str(HERE)]
     upstream_flags = ['-DFIXED_POINT', '-DOPUS_BUILD', '-DHAVE_STDINT_H', '-DHAVE_INTTYPES_H']
@@ -671,6 +737,10 @@ def main():
     if args.case in ['fft','fft_math','mdct']:
         upstream_flags += ['-DNONTHREADSAFE_PSEUDOSTACK']
         flags += upstream_flags + includes
+    vorbis_includes=['-I'+str(HERE/'config'),'-I'+str(OGG/'include'),'-I'+str(TREMOR)]
+    if args.case == 'vorbis_mdct':
+        flags += ['-fwrapv', '-DBYTE_ORDER=4321', '-DLITTLE_ENDIAN=1234',
+                  '-DBIG_ENDIAN=4321', '-I'+str(HERE/'include'), *vorbis_includes]
     objects = []
     for path in [HERE / 'crt0.s', HERE.parent/'runtime/indirect.s', source]:
         obj = BUILD / (path.stem+'.o')
@@ -696,20 +766,31 @@ def main():
                      *[directory/(name+'.c') for name in units], '-ffunction-sections', '-fdata-sections',
                      '-Wl,--gc-sections', '-lm', '-o', host], 'host.log')
             reference_bytes = subprocess.check_output([host])
+    if args.case == 'vorbis_mdct':
+        obj=BUILD/'vorbis_mdct.o'
+        command([CC,*flags,'-c',TREMOR/'mdct.c','-o',obj],'vorbis_mdct.log')
+        objects.append(obj)
+        host=BUILD/'host-reference'
+        command(['cc','-O2','-fwrapv','-fno-strict-aliasing','-DHOST_REFERENCE',
+                 '-I'+str(HERE),*vorbis_includes,source,TREMOR/'mdct.c','-o',host],'host.log')
+        reference_bytes=subprocess.check_output([host])
     elf, cdc = BUILD/(stem+'.elf'), BUILD/(stem+'.cdc')
     linker_script=HERE/'link.ld'
     if args.case=='callback':
         linker_script=BUILD/'callback.ld'
         linker_script.write_text((HERE/'link.ld').read_text().replace('    . = 0x10002000;',
             '    . = 0x20000;\n    .callbacks_far : { *(.callbacks_far) } :prog\n    . = 0x10002000;'))
+    if args.case=='vorbis_mdct':
+        linker_script=BUILD/'vorbis_mdct.ld'
+        linker_script.write_text((HERE/'link.ld').read_text().replace('0x10006000','0x1000e000'))
     command([LD, '--gc-sections', '-T', linker_script, *objects, '-o', elf], 'link.log')
     runner = BUILD/'runner'
     if not runner.exists() or runner.stat().st_mtime < (HERE/'runner.cpp').stat().st_mtime:
         command(['g++', '-O2', '-std=c++17', '-I'+str(TEAKRA/'include'), HERE/'runner.cpp',
                  TEAKRA/'b/src/libteakra.a', '-o', runner], 'runner.log')
     reference = BUILD/(stem+'.pcm')
-    reference.write_bytes(reference_bytes if args.case in ['nlsf', 'silk_math', 'fft', 'interpolate','mdct'] else struct.pack('<'+'H'*len(expected), *[v & 65535 for v in expected]))
-    result = subprocess.run([str(runner), str(elf), str(reference), str(BUILD/(stem+'-actual.pcm'))], capture_output=True, text=True)
+    reference.write_bytes(reference_bytes if args.case in ['nlsf', 'silk_math', 'fft', 'interpolate','mdct','vorbis_mdct'] else struct.pack('<'+'H'*len(expected), *[v & 65535 for v in expected]))
+    result = subprocess.run([str(runner), str(elf), str(reference), str(BUILD/(stem+'-actual.pcm')),str(args.max_steps),str(mailbox)], capture_output=True, text=True)
     (BUILD/(stem+'-emulate.log')).write_text(result.stdout+result.stderr)
     if not result.stdout.strip():
         raise RuntimeError(f'Emulation failed; see {BUILD / (stem+"-emulate.log")}')
@@ -721,6 +802,9 @@ def main():
             evidence.update(fft_size=args.fft_size,fft_vector=args.fft_vector)
         if args.case=='mdct':
             evidence.update(mdct_size=args.mdct_size,mdct_stride=args.mdct_stride,mdct_vector=args.mdct_vector,mdct_frames=args.mdct_frames)
+        if args.case=='vorbis_mdct':
+            evidence.update(vorbis_size=args.vorbis_size,vorbis_vector=args.vorbis_vector)
+        evidence.update(step_limit=args.max_steps,mailbox=mailbox)
         evidence.update(case=args.case, optimization=args.opt, diagnostics=result.stderr.splitlines(),
                         compiler=CC, physical_hardware=False)
         (BUILD/(args.label+'-'+stem+'.json')).write_text(json.dumps(evidence, indent=2)+'\n')

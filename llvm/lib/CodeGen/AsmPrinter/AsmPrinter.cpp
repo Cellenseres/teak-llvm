@@ -2407,6 +2407,12 @@ static int isRepeatedByteSequence(const Value *V, const DataLayout &DL) {
 static void emitGlobalConstantDataSequential(const DataLayout &DL,
                                              const ConstantDataSequential *CDS,
                                              AsmPrinter &AP) {
+  if (isa<ArrayType>(CDS->getType()) &&
+      DL.getTypeAllocSize(CDS->getElementType()) != CDS->getElementByteSize()) {
+    for (unsigned Index = 0; Index < CDS->getNumElements(); ++Index)
+      emitGlobalConstantImpl(DL, CDS->getElementAsConstant(Index), AP);
+    return;
+  }
   // See if we can aggregate this into a .fill, if so, emit it as such.
   int Value = isRepeatedByteSequence(CDS, DL);
   if (Value != -1) {
