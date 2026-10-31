@@ -279,3 +279,14 @@ firmware stays byte-identical, with both multiplier scans passing. See
 `opendsp/validation/division-20261025.json`. A subsequent byte-swap promotion
 fix avoids invalid 40-bit BSWAP nodes and passes another 202 words, recorded
 separately in `opendsp/validation/byte-order-20261025.json`.
+
+Variable stack allocations preserve word addressing and requested alignment.
+Stack save and restore use SP, and the epilogue restores the fixed frame before
+popping saved registers. Instruction selection also preserves machine nodes
+already emitted during lowering.
+
+Dynamic-buffer tests pass 140 words at O1 and O2. They cover multiple
+allocations, eight-byte alignment, scoped VLAs, guards and six-argument calls.
+The related O2 call, stack and memory checks bring this run to 1,905 words.
+See `opendsp/validation/dynamic-stack-20261025.json`. Allocation limits for a
+production decoder remain separate from compiler support.

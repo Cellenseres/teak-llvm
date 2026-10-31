@@ -96,7 +96,7 @@ void TeakFrameLowering::emitPrologue(MachineFunction &MF, MachineBasicBlock &MBB
 
     StackSize -= CSI.size() * 2;
 
-    if (!StackSize && MFI.getNumFixedObjects() == 0)
+    if (!StackSize && MFI.getNumFixedObjects() == 0 && !MFI.hasVarSizedObjects())
       return;
 
     BuildMI(MBB, MBBI, dl, TII.get(Teak::PUSH_regnob16), Teak::R7)
@@ -128,8 +128,21 @@ void TeakFrameLowering::emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB
 
 	StackSize -= CSI.size() * 2;
 
-	if (!StackSize && MFI.getNumFixedObjects() == 0)
+	if (!StackSize && MFI.getNumFixedObjects() == 0 && !MFI.hasVarSizedObjects())
 		return;
+
+    if (MFI.hasVarSizedObjects() && !CSI.empty()) {
+        auto Restore = MBBI;
+        for (unsigned Index = 0; Index < CSI.size(); ++Index)
+            --Restore;
+        BuildMI(MBB, Restore, dl, TII.get(Teak::MOV_regnobp016_regnob16), Teak::SP)
+            .addReg(Teak::R7).setMIFlag(MachineInstr::FrameDestroy);
+        BuildMI(MBB, Restore, dl, TII.get(Teak::ADDV_imm16_RegNoBRegs16), Teak::SP)
+            .addImm(-(computeStackSize(MF) / 2)).addReg(Teak::SP)
+            .setMIFlag(MachineInstr::FrameDestroy);
+        BuildMI(MBB, Restore, dl, TII.get(Teak::NOP))
+            .setMIFlag(MachineInstr::FrameDestroy);
+    }
 
     BuildMI(MBB, MBBI, dl, TII.get(Teak::MOV_regnobp016_regnob16), Teak::SP)
             .addReg(Teak::R7)

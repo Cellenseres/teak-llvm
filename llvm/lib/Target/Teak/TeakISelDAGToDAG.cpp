@@ -153,6 +153,10 @@ bool TeakDAGToDAGISel::SelectLoad(SDNode* node)
 
 void TeakDAGToDAGISel::Select(SDNode* N)
 {
+    if (N->isMachineOpcode()) {
+        N->setNodeId(-1);
+        return;
+    }
     switch (N->getOpcode())
     {
         case ISD::FrameIndex: {
@@ -175,10 +179,6 @@ void TeakDAGToDAGISel::Select(SDNode* N)
 		// 	break;
     }
 
-    // if (N->isMachineOpcode()) {
-    //   N->setNodeId(-1);
-    //   return; // Already selected.
-    // }
     // if(N->getOpcode() == TeakISD::RET_FLAG)
     // {
     //   SelectCode(N);

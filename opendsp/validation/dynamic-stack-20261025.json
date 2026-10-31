@@ -1,0 +1,91 @@
+{
+  "base_commit": "7f87c263cef",
+  "compiler_kind": "Locally rebuilt frontend and backend",
+  "clean_build": false,
+  "physical_hardware": false,
+  "compiler_sha256": "c7e1d3a2ad0d76360a3fb0b6f69c043d71968ccb0e6b97c57c28396e00ba3dc9",
+  "case_count": 5,
+  "comparisons": 1905,
+  "extra_o1_case": {
+    "completed": true,
+    "comparisons": 140,
+    "errors": 0,
+    "steps": 837327,
+    "step_limit": 3000000,
+    "mailbox": 12288,
+    "case": "dynamic_stack",
+    "optimization": "-O1",
+    "diagnostics": [],
+    "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+    "physical_hardware": false
+  },
+  "compiled_units": 16,
+  "probed_units": 23,
+  "cases": [
+    {
+      "completed": true,
+      "comparisons": 163,
+      "errors": 0,
+      "steps": 2250,
+      "step_limit": 3000000,
+      "mailbox": 12288,
+      "case": "bulk",
+      "optimization": "-O2",
+      "diagnostics": [],
+      "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+      "physical_hardware": false
+    },
+    {
+      "completed": true,
+      "comparisons": 216,
+      "errors": 0,
+      "steps": 43654,
+      "step_limit": 3000000,
+      "mailbox": 12288,
+      "case": "callback",
+      "optimization": "-O2",
+      "diagnostics": [],
+      "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+      "physical_hardware": false
+    },
+    {
+      "completed": true,
+      "comparisons": 639,
+      "errors": 0,
+      "steps": 118880,
+      "step_limit": 3000000,
+      "mailbox": 12288,
+      "case": "calls",
+      "optimization": "-O2",
+      "diagnostics": [],
+      "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+      "physical_hardware": false
+    },
+    {
+      "completed": true,
+      "comparisons": 140,
+      "errors": 0,
+      "steps": 825997,
+      "step_limit": 3000000,
+      "mailbox": 12288,
+      "case": "dynamic_stack",
+      "optimization": "-O2",
+      "diagnostics": [],
+      "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+      "physical_hardware": false
+    },
+    {
+      "completed": true,
+      "comparisons": 747,
+      "errors": 0,
+      "steps": 11753,
+      "step_limit": 3000000,
+      "mailbox": 12288,
+      "case": "stack",
+      "optimization": "-O2",
+      "diagnostics": [],
+      "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+      "physical_hardware": false
+    }
+  ]
+}

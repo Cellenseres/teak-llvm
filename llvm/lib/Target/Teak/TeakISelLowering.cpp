@@ -136,6 +136,9 @@ TeakTargetLowering::TeakTargetLowering(const TeakTargetMachine &TeakTM)
 	setOperationAction(ISD::SRA, MVT::i40, Custom);
 
 	setStackPointerRegisterToSaveRestore(Teak::SP);
+	setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i16, Custom);
+	setOperationAction(ISD::STACKSAVE, MVT::Other, Custom);
+	setOperationAction(ISD::STACKRESTORE, MVT::Other, Custom);
 
 	setSchedulingPreference(Sched::RegPressure);
 
@@ -539,6 +542,27 @@ SDValue TeakTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
 	// Op.dump(&DAG);
 	switch (Op.getOpcode()) 
 	{
+		case ISD::STACKSAVE:
+			return DAG.getCopyFromReg(Op.getOperand(0), SDLoc(Op), Teak::SP, MVT::i16);
+		case ISD::STACKRESTORE: {
+			SDLoc Location(Op);
+			SDValue Chain = DAG.getCopyToReg(Op.getOperand(0), Location, Teak::SP, Op.getOperand(1));
+			return SDValue(DAG.getMachineNode(Teak::NOP, Location, MVT::Other, Chain), 0);
+		}
+		case ISD::DYNAMIC_STACKALLOC: {
+			SDLoc Location(Op);
+			SDValue Stack = DAG.getCopyFromReg(Op.getOperand(0), Location, Teak::SP, MVT::i16);
+			SDValue Words = DAG.getNode(ISD::SRL, Location, MVT::i16, Op.getOperand(1),
+				DAG.getConstant(1, Location, MVT::i16));
+			SDValue Address = DAG.getNode(ISD::SUB, Location, MVT::i16, Stack, Words);
+			unsigned Alignment = cast<ConstantSDNode>(Op.getOperand(2))->getZExtValue() / 2;
+			if (Alignment > 1)
+				Address = DAG.getNode(ISD::AND, Location, MVT::i16, Address,
+					DAG.getConstant(APInt(16, ~(Alignment - 1)), Location, MVT::i16));
+			SDValue Chain = DAG.getCopyToReg(Stack.getValue(1), Location, Teak::SP, Address);
+			Chain = SDValue(DAG.getMachineNode(Teak::NOP, Location, MVT::Other, Chain), 0);
+			return DAG.getMergeValues({Address, Chain}, Location);
+		}
 		case ISD::UDIV:
 		case ISD::UREM:
 		case ISD::SDIV:

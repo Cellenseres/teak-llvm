@@ -513,6 +513,62 @@ static const mdct_lookup mdct_state = {
     return source,body,[0]*(2*(length+4))
 
 
+def dynamic_stack_case():
+    source='''
+__attribute__((noinline)) u32 sum_dynamic(const u16 *values,u16 count,u16 first,u16 second,u16 third,u16 fourth) {
+    u32 result=first+3u*second+5u*third+7u*fourth;
+    u16 index;
+    for(index=0;index<count;++index) result+=(u32)values[index]*(index+1u);
+    return result;
+}
+__attribute__((noinline)) u32 dynamic_values(u16 count,u32 seed) {
+    volatile u16 guards[3]={0x1234,0x2345,0x3456};
+    u16 *words=__builtin_alloca(sizeof(*words)*(count+2));
+    u32 *aligned=__builtin_alloca_with_align(sizeof(*aligned)*(count+2),64);
+    u32 result;
+    u16 index;
+    if((unsigned)aligned&3) return 0xdead0001u;
+    words[0]=0x1357; words[count+1]=0x2468;
+    aligned[0]=0x12345678u; aligned[count+1]=0x23456789u;
+    for(index=0;index<count;++index) {
+        words[index+1]=seed+index*7919u;
+        aligned[index+1]=seed^(index*0x7919123u+0x1234567u);
+    }
+    result=sum_dynamic(words+1,count,0x1234,0x2345,0x3456,0x4567);
+    for(index=0;index<count;++index) result+=aligned[index+1]*(index+1u)*3u;
+    return result+guards[0]+guards[1]+guards[2]+words[0]+words[count+1]+aligned[0]+aligned[count+1];
+}
+__attribute__((noinline)) u32 scoped_values(u16 count,u32 seed) {
+    volatile u16 guards[2]={0x4567,0x5678};
+    u32 result=0;
+    u16 block,index;
+    for(block=0;block<4;++block) {
+        volatile u16 values[count];
+        for(index=0;index<count;++index) values[index]=seed+block*31u+index*193u;
+        result+=sum_dynamic((const u16 *)values,count,block+1,3,5,7);
+    }
+    return result+guards[0]+guards[1];
+}
+volatile u32 dynamic_seeds[]={0,1,0xffffffffu,0x80000000u,0x12345678u};
+'''
+    body,expected=['u32 result;'],[]
+    for count in [1,2,3,7,16,31,64]:
+        for index,seed in enumerate([0,1,0xffffffff,0x80000000,0x12345678]):
+            words=[(seed+position*7919)&65535 for position in range(count)]
+            aligned=[seed^((position*0x7919123+0x1234567)&0xffffffff) for position in range(count)]
+            result=0x1234+3*0x2345+5*0x3456+7*0x4567
+            result+=sum(value*(position+1) for position,value in enumerate(words))
+            result+=sum(value*(position+1)*3 for position,value in enumerate(aligned))
+            result+=0x1234+0x2345+0x3456+0x1357+0x2468+0x12345678+0x23456789
+            scoped=0x4567+0x5678
+            for block in range(4):
+                scoped+=block+84+sum(((seed+block*31+position*193)&65535)*(position+1) for position in range(count))
+            for function,value in [('dynamic_values',result),('scoped_values',scoped)]:
+                body.extend([f'result={function}({count},dynamic_seeds[{index}]);','out[n++]=result;','out[n++]=result >> 16;'])
+                expected.extend([value&65535,(value>>16)&65535])
+    return source,body,expected
+
+
 def byte_order_case():
     values={0,1,0xffffffff,0x7fffffff,0x80000000,0x12345678,0x89abcdef}
     values.update(1<<bit for bit in range(32))
@@ -791,7 +847,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', default='-O2')
     parser.add_argument('--label')
-    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct', 'division', 'range_decoder', 'byte_order'], default='comparisons')
+    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct', 'division', 'range_decoder', 'byte_order', 'dynamic_stack'], default='comparisons')
     parser.add_argument('--max-steps',type=int,default=3000000)
     parser.add_argument('--vorbis-size',type=int,choices=[64,128,256,512,1024,2048,4096,8192],default=64)
     parser.add_argument('--vorbis-vector',type=int,choices=range(5),default=0)
@@ -806,7 +862,9 @@ def main():
     factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'fft': fft_case, 'pointers': pointers_case, 'fft_math': fft_math_case, 'table_words': table_words_case, 'calls': calls_case, 'interpolate': interpolate_case, 'word_memory': word_memory_case, 'high_product': high_product_case}
     if args.max_steps < 1:
         parser.error('Step limit must be positive')
-    if args.case == 'byte_order':
+    if args.case == 'dynamic_stack':
+        functions,body,expected=dynamic_stack_case()
+    elif args.case == 'byte_order':
         functions,body,expected=byte_order_case()
     elif args.case == 'range_decoder':
         functions,body,expected=range_decoder_case()
