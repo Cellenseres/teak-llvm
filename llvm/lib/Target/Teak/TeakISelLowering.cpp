@@ -137,6 +137,7 @@ TeakTargetLowering::TeakTargetLowering(const TeakTargetMachine &TeakTM)
 	setOperationAction(ISD::GlobalAddress, MVT::i16, Custom);
 	setOperationAction(ISD::GlobalAddress, MVT::i32, Custom);
 	setOperationAction(ISD::GlobalAddress, MVT::i40, Custom);
+	setOperationAction(ISD::ConstantPool, MVT::i16, Custom);
 	setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i40, Expand);
 	setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i32, Expand);
 	setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i16, Expand);
@@ -473,6 +474,12 @@ SDValue TeakTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
 	// Op.dump(&DAG);
 	switch (Op.getOpcode()) 
 	{
+		case ISD::ConstantPool: {
+			ConstantPoolSDNode *Pool = cast<ConstantPoolSDNode>(Op);
+			SDValue Address = DAG.getTargetConstantPool(Pool->getConstVal(), MVT::i16,
+				Pool->getAlignment(), Pool->getOffset(), Pool->getTargetFlags());
+			return DAG.getNode(TeakISD::WRAPPER, SDLoc(Op), MVT::i16, Address);
+		}
 		case ISD::LOAD: {
 			LoadSDNode *Load = cast<LoadSDNode>(Op);
 			if (Load->getAlignment() >= 4 && Load->getExtensionType() != ISD::ZEXTLOAD)
@@ -865,6 +872,23 @@ SDValue TeakTargetLowering::LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) co
 	EVT VT = Op.getValueType();
 	GlobalAddressSDNode *GlobalAddr = cast<GlobalAddressSDNode>(Op.getNode());
 	int64_t Offset = cast<GlobalAddressSDNode>(Op)->getOffset();
+	if (GlobalAddr->getGlobal()->getAddressSpace() == 1) {
+		assert(Offset == 0 && "Unexpected program symbol offset");
+		SDLoc Location(Op);
+		Constant *Address = ConstantExpr::getPtrToInt(
+			const_cast<GlobalValue *>(GlobalAddr->getGlobal()),
+			Type::getInt32Ty(*DAG.getContext()));
+		SDValue Pool = DAG.getConstantPool(Address, MVT::i16, 4);
+		MachinePointerInfo PointerInfo = MachinePointerInfo::getConstantPool(DAG.getMachineFunction());
+		SDValue High = DAG.getLoad(MVT::i16, Location, DAG.getEntryNode(), Pool, PointerInfo, 4);
+		SDValue Low = DAG.getLoad(MVT::i16, Location, High.getValue(1),
+			DAG.getMemBasePlusOffset(Pool, 1, Location), PointerInfo.getWithOffset(2), 2);
+		return DAG.getNode(ISD::OR, Location, MVT::i40,
+			DAG.getNode(ISD::SHL, Location, MVT::i40,
+				DAG.getNode(ISD::ZERO_EXTEND, Location, MVT::i40, High),
+				DAG.getConstant(16, Location, MVT::i40)),
+			DAG.getNode(ISD::ZERO_EXTEND, Location, MVT::i40, Low));
+	}
 	if(VT == MVT::i16)
 		return DAG.getNode(TeakISD::WRAPPER, SDLoc(Op), MVT::i16, DAG.getTargetGlobalAddress(GlobalAddr->getGlobal(), Op, MVT::i16, Offset));
 	else
@@ -913,6 +937,17 @@ SDValue TeakTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 
   SmallVector<std::pair<unsigned, SDValue>, 8> RegsToPass;
   SmallVector<SDValue, 8> MemOpChains;
+
+  if (!isa<GlobalAddressSDNode>(Callee) && !isa<ExternalSymbolSDNode>(Callee)) {
+    SDValue Address = DAG.getZExtOrTrunc(Callee, Loc, MVT::i40);
+    RegsToPass.emplace_back(Teak::R0,
+        DAG.getNode(ISD::TRUNCATE, Loc, MVT::i16, Address));
+    RegsToPass.emplace_back(Teak::R1,
+        DAG.getNode(ISD::TRUNCATE, Loc, MVT::i16,
+            DAG.getNode(ISD::SRL, Loc, MVT::i40, Address,
+                DAG.getConstant(16, Loc, MVT::i40))));
+    Callee = DAG.getTargetExternalSymbol("__teak_indirect_call", MVT::i40);
+  }
 
   // Walk the register/memloc assignments, inserting copies/loads.
   for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
@@ -1251,6 +1286,8 @@ void TeakTargetLowering::ReplaceNodeResults(SDNode *N,
 	// dbgs() << "ReplaceNodeResults not implemented for this op!\n";
 
 	SDValue Res = LowerOperation(SDValue(N, 0), DAG);
+	if (N->getOpcode() == ISD::GlobalAddress && N->getValueType(0) == MVT::i32)
+		Res = DAG.getNode(ISD::TRUNCATE, dl, MVT::i32, Res);
 
     for (unsigned I = 0, E = Res->getNumValues(); I != E; ++I)
       Results.push_back(Res.getValue(I));

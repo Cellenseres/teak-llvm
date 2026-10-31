@@ -234,6 +234,66 @@ u16 wide_constant40(u16,u16);
     return source,body,expected
 
 
+def callback_case():
+    source='''
+typedef u32 (*callback_function)(u32,u32,u32,u32,u32,u32);
+struct callback_record {u16 guard; callback_function function; u16 end;};
+_Static_assert(sizeof(callback_function)==4,"Program pointer width");
+_Static_assert(sizeof(u16 *)==2,"Data pointer width");
+_Static_assert(sizeof(struct callback_record)==12,"Callback record size");
+_Static_assert(__builtin_offsetof(struct callback_record,function)==4,"Callback offset");
+__attribute__((noinline,section(".callbacks_far"))) u32 callback_first(u32 first,u32 second,u32 third,u32 fourth,u32 fifth,u32 sixth) {
+    return (first+second)^third^((fourth+fifth)<<3)^(sixth>>5);
+}
+static __attribute__((noinline,section(".callbacks_far"))) u32 callback_second(u32 first,u32 second,u32 third,u32 fourth,u32 fifth,u32 sixth) {
+    return (first^second)+(third-fourth)+fifth*17u+sixth;
+}
+u32 callback_nested(u32,u32,u32,u32,u32,u32);
+callback_function volatile callbacks[]={callback_first,callback_second,callback_nested};
+struct callback_record volatile callback_records[]={
+    {0x1234,callback_first,0x2345},{0x3456,callback_second,0x4567},
+    {0x5678,callback_nested,0x6789}
+};
+__attribute__((noinline)) callback_function select_callback(u16 index) {
+    if (index==0) return callback_first;
+    if (index==1) return callback_second;
+    return callback_nested;
+}
+__attribute__((noinline)) u32 callback_nested(u32 first,u32 second,u32 third,u32 fourth,u32 fifth,u32 sixth) {
+    callback_function function=callbacks[0];
+    return function(sixth,fifth,fourth,third,second,first)+first*13u;
+}
+__attribute__((noinline)) u32 invoke_callback(callback_function function,u32 first,u32 second,u32 third,u32 fourth,u32 fifth,u32 sixth) {
+    volatile u16 guards[3]={0x1234,0x2345,0x3456};
+    u32 result=function(first,second,third,fourth,fifth,sixth);
+    return result^guards[0]^guards[1]^guards[2];
+}
+'''
+    values=[0,1,0x7fff,0x8000,0xffff,0x7fffffff,0x80000000,0xffffffff,0x12345678]
+    source+='volatile u32 callback_inputs[]={'+','.join(str(value)+'u' for value in values)+'};\n'
+    body,expected=['u32 result;'],[]
+    mask=0xffffffff
+    def first(a,b,c,d,e,f):
+        return ((a+b)&mask)^c^(((d+e)<<3)&mask)^(f>>5)
+    def second(a,b,c,d,e,f):
+        return ((a^b)+c-d+e*17+f)&mask
+    def nested(a,b,c,d,e,f):
+        return (first(f,e,d,c,b,a)+a*13)&mask
+    for case in range(len(values)):
+        indices=[(case+offset*3)%len(values) for offset in range(6)]
+        arguments=','.join(f'callback_inputs[{index}]' for index in indices)
+        for table in ['callbacks','callback_records','returned']:
+            for index,function in enumerate([first,second,nested]):
+                pointer=f'select_callback({index})' if table=='returned' else f'{table}[{index}]'+('.function' if table=='callback_records' else '')
+                body.extend([f'result=invoke_callback({pointer},{arguments});','out[n++]=result;','out[n++]=result >> 16;'])
+                value=function(*(values[position] for position in indices))^0x1234^0x2345^0x3456
+                expected.extend([value&65535,value>>16])
+                if table=='callback_records':
+                    body.extend([f'out[n++]=callback_records[{index}].guard;',f'out[n++]=callback_records[{index}].end;'])
+                    expected.extend([[0x1234,0x2345],[0x3456,0x4567],[0x5678,0x6789]][index])
+    return source,body,expected
+
+
 def word_memory_case():
     source = """
 __attribute__((noinline)) u32 sum_unsigned_words(const u16 *input,u16 count) {
@@ -572,7 +632,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', default='-O2')
     parser.add_argument('--label')
-    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product'], default='comparisons')
+    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback'], default='comparisons')
     parser.add_argument('--fft-size',type=int,choices=[60,120,240,480],default=60)
     parser.add_argument('--fft-vector',type=int,choices=range(5),default=0)
     parser.add_argument('--mdct-size',type=int,choices=[120,240,480,960],default=120)
@@ -582,7 +642,9 @@ def main():
     args = parser.parse_args()
     BUILD.mkdir(parents=True, exist_ok=True)
     factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'fft': fft_case, 'pointers': pointers_case, 'fft_math': fft_math_case, 'table_words': table_words_case, 'calls': calls_case, 'interpolate': interpolate_case, 'word_memory': word_memory_case, 'high_product': high_product_case}
-    if args.case == 'mdct':
+    if args.case == 'callback':
+        functions,body,expected=callback_case()
+    elif args.case == 'mdct':
         if args.mdct_size*args.mdct_stride>960:
             parser.error('MDCT input exceeds test memory')
         functions,body,expected=mdct_case(args.mdct_size,args.mdct_stride,args.mdct_vector,args.mdct_frames)
@@ -610,7 +672,7 @@ def main():
         upstream_flags += ['-DNONTHREADSAFE_PSEUDOSTACK']
         flags += upstream_flags + includes
     objects = []
-    for path in [HERE / 'crt0.s', source]:
+    for path in [HERE / 'crt0.s', HERE.parent/'runtime/indirect.s', source]:
         obj = BUILD / (path.stem+'.o')
         command([CC, *flags, '-c', path, '-o', obj], path.stem+'.log')
         objects.append(obj)
@@ -635,7 +697,12 @@ def main():
                      '-Wl,--gc-sections', '-lm', '-o', host], 'host.log')
             reference_bytes = subprocess.check_output([host])
     elf, cdc = BUILD/(stem+'.elf'), BUILD/(stem+'.cdc')
-    command([LD, '--gc-sections', '-T', HERE/'link.ld', *objects, '-o', elf], 'link.log')
+    linker_script=HERE/'link.ld'
+    if args.case=='callback':
+        linker_script=BUILD/'callback.ld'
+        linker_script.write_text((HERE/'link.ld').read_text().replace('    . = 0x10002000;',
+            '    . = 0x20000;\n    .callbacks_far : { *(.callbacks_far) } :prog\n    . = 0x10002000;'))
+    command([LD, '--gc-sections', '-T', linker_script, *objects, '-o', elf], 'link.log')
     runner = BUILD/'runner'
     if not runner.exists() or runner.stat().st_mtime < (HERE/'runner.cpp').stat().st_mtime:
         command(['g++', '-O2', '-std=c++17', '-I'+str(TEAKRA/'include'), HERE/'runner.cpp',

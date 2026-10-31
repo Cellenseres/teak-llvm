@@ -1477,7 +1477,7 @@ void ELFObjectWriter::recordRelocation(MCAssembler &Asm,
   uint64_t Addend = 0;
 
   if (TargetObjectWriter->getEMachine() == ELF::EM_TEAK &&
-      Type == ELF::R_TEAK_16) {
+      (Type == ELF::R_TEAK_16 || Type == ELF::R_TEAK_32)) {
     if (C & 1) {
       Ctx.reportError(Fixup.getLoc(), "Unaligned Teak data pointer");
       return;

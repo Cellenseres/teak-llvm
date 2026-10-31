@@ -69,6 +69,15 @@ public:
                              TargetInfo::ConstraintInfo &Info) const override {
     return false;
   }
+
+protected:
+  uint64_t getPointerWidthV(unsigned AddressSpace) const override {
+    return AddressSpace == 1 ? 32 : PointerWidth;
+  }
+
+  uint64_t getPointerAlignV(unsigned AddressSpace) const override {
+    return AddressSpace == 1 ? 32 : PointerAlign;
+  }
 };
 
 } // namespace targets

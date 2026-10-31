@@ -2555,6 +2555,9 @@ public:
                                              QualType typeDomain) const;
 
   unsigned getTargetAddressSpace(QualType T) const {
+    if (T->isFunctionType() && T.getAddressSpace() == LangAS::Default &&
+        getTargetInfo().getTriple().getArch() == llvm::Triple::teak)
+      return 1;
     return getTargetAddressSpace(T.getQualifiers());
   }
 

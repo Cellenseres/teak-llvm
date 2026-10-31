@@ -127,6 +127,10 @@ void TeakAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
         case FK_Data_2:
             write16le(&Data[Offset], Value);
             break;
+        case FK_Data_4:
+            write16le(&Data[Offset], Value >> 16);
+            write16le(&Data[Offset + 2], Value & 65535);
+            break;
         case Teak::fixup_teak_call_imm18:
             write16le(&Data[Offset], (read16le(&Data[Offset]) & ~0x30) | (((Value >> 16) & 3) << 4));
             write16le(&Data[Offset + 2], Value & 0xFFFF);

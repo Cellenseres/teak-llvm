@@ -54,6 +54,8 @@ jobs:
           python3 opendsp/tests/run.py --case stack --label ci
           python3 opendsp/tests/run.py --case bulk --label ci
           python3 opendsp/tests/run.py --case calls --label ci
+          python3 opendsp/tests/run.py --case callback --label ci
+          python3 opendsp/tests/run.py --case callback --opt=-O1 --label ci
           python3 opendsp/tests/run.py --case interpolate --label ci
           python3 opendsp/tests/run.py --case word_memory --label ci
           python3 opendsp/tests/run.py --case table_words --label ci

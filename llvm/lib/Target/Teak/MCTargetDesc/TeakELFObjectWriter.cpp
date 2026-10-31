@@ -50,6 +50,9 @@ unsigned TeakELFObjectWriter::getRelocType(MCContext &Ctx,
   case FK_Data_2:
     Type = ELF::R_TEAK_16;
     break;
+  case FK_Data_4:
+    Type = ELF::R_TEAK_32;
+    break;
   case Teak::fixup_teak_call_imm18:
     Type = ELF::R_TEAK_CALL_IMM18;
     break;

@@ -214,6 +214,23 @@ and four additional MDCT cases pass 33,473 words. See
 `opendsp/validation/high-products-20261025.json`. General i80 arithmetic is not
 supported; the product tests use LLVM fixed-point intrinsics.
 
+Function pointers use program address space one, with a 32-bit representation
+and alignment. `R_TEAK_32` stores program addresses as two words. Program
+constants use a data constant pool, retaining addresses above 64K words.
+
+Indirect calls pass the destination in R0/R1 and call `__teak_indirect_call`.
+Link `opendsp/runtime/indirect.s` and use CPC zero. The entry pushes the target
+and returns into it, preserving all four argument registers and stack slots.
+
+The callback group passes 216 words at O1 and O2. It covers two far functions,
+including an internal symbol with a section offset, tables, records, returned
+pointers, six arguments and nested calls. The complete locally rebuilt frontend
+and backend pass 33,689 words across 41 O2 cases. The existing firmware builds
+to 246,672 bytes, including the call entry; both multiplier scans pass. This is
+an isolated candidate, not a replacement for the production prebuilt. See
+`opendsp/validation/program-pointers-20261025.json`. A clean complete compiler
+rebuild and physical playback validation remain separate requirements.
+
 Published main stops at `f9afa50c4b359aba51be2750fcd605a857535759`, containing
 only the four compiler patches shipped with OpenDSP v1.2.2. Newer compiler
 work remains local until publication is approved.

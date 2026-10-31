@@ -633,6 +633,8 @@ def CALLR_rel7 : InstTeak<(outs), (ins Operand<i40>:$addr, pred:$p), "callr $add
 let isCall = 1, Uses = [SP] in 
 def CALL_imm18 : InstTeakImm16<(outs), (ins Operand<i40>:$addr, pred:$p), "call $addr, $p", [(teak_call tglobaladdr:$addr)]>;
 
+def : Pat<(teak_call texternalsym:$addr), (CALL_imm18 texternalsym:$addr)>;
+
 let isTerminator = 1, isReturn = 1, isBarrier = 1, Defs = [SP], Uses = [SP], mayLoad = 1 in
 def RET : InstTeak<(outs), (ins pred:$p), "ret $p",  [(TeakRetFlag)]>;
 
@@ -659,6 +661,7 @@ def : Pat<(truncstorei16 ARegs:$src, (i16 (TeakWrapper tglobaladdr:$dst))), (MOV
 def : Pat<(i40 (sextloadi16 (TeakWrapper tglobaladdr:$src))), (MOV_memimm16_a tglobaladdr:$src)>;
 def : Pat<(i40 (extloadi16 (TeakWrapper tglobaladdr:$src))), (MOV_memimm16_a tglobaladdr:$src)>;
 def : Pat<(i16 (TeakWrapper tglobaladdr:$dst)), (MOV_imm16_regnob16 tglobaladdr:$dst)>;
+def : Pat<(i16 (TeakWrapper tconstpool:$dst)), (MOV_imm16_regnob16 tconstpool:$dst)>;
 // anyextload
 def : Pat<(extloadi16 tglobaladdr:$srcAddr), (MOV_memimm16_a tglobaladdr:$srcAddr)>;
 def : Pat<(extloadi16 imm:$srcAddr), (MOV_memimm16_a imm:$srcAddr)>;
