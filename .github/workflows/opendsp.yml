@@ -78,6 +78,10 @@ jobs:
           python3 opendsp/tests/run.py --case dynamic_stack --label ci
           python3 opendsp/tests/run.py --case dynamic_stack --opt=-O1 --label ci
           python3 opendsp/tests/run.py --case size_types --label ci
+          python3 opendsp/tests/run.py --case granules --label ci
+          python3 opendsp/tests/run.py --case granules --opt=-O1 --label ci
+          python3 opendsp/tests/run.py --case varargs --label ci
+          python3 opendsp/tests/run.py --case varargs --opt=-O1 --label ci
           python3 opendsp/tests/run.py --case table_words --label ci
           python3 opendsp/tests/run.py --case pointers --label ci
           python3 opendsp/tests/run.py --case fft_math --label ci

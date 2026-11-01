@@ -25,10 +25,16 @@ class Function;
 /// TeakFunctionInfo - This class is derived from MachineFunction private
 /// Teak target-specific information for each MachineFunction.
 class TeakFunctionInfo : public MachineFunctionInfo {
+  int VarArgsFrameIndex = 0;
+
 public:
   TeakFunctionInfo() {}
+  explicit TeakFunctionInfo(MachineFunction &) {}
 
   ~TeakFunctionInfo() {}
+
+  int getVarArgsFrameIndex() const { return VarArgsFrameIndex; }
+  void setVarArgsFrameIndex(int Index) { VarArgsFrameIndex = Index; }
 };
 } // End llvm namespace
 

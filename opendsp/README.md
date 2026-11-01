@@ -304,3 +304,21 @@ with 194,942 text bytes; both multiplier scans pass. Its SHA-256 is
 `6bf212400f345d7b51d0fe95cf2469124330d47bc46e42855bf085cc95f8660a`.
 See `opendsp/validation/size-types-20261025.json`. The production prebuilt and
 compiler publication baseline remain unchanged.
+
+Expanded integers retain their actual upper-bit width when shifting, comparing
+and extending. An 80-bit intermediate splits into two native 40-bit values.
+Extending loads preserve the original memory access before extension, avoiding
+five-byte fragments on word-addressed memory. The granule group checks 1,716
+words at O1 and O2, including signed loads and returns. All 48 O2 groups pass
+48,007 words. Vorbis block processing now compiles. See
+`opendsp/validation/granules-20261025.json`.
+
+Variadic functions pass every argument on the stack, including fixed arguments.
+Native 16-bit arguments occupy one word; 40-bit parts occupy three words.
+Argument lists support copying and independent traversal. Tests cover direct
+and indirect calls, mixed pointers and integers, and 64-bit values. Both
+optimization levels pass 272 words; related checks bring this run to 4,165
+words. Opus main and CELT decoder units now compile, bringing the probe to
+20 of 23 units. Byte-containing records still block SILK and Ogg framing.
+See `opendsp/validation/varargs-20261025.json`. Full packet decoding and physical
+playback remain unverified.

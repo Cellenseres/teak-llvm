@@ -41,11 +41,13 @@ def CC_Teak : CallingConv<[
   CCIfType<[i1], CCPromoteToType<i16>>,
   CCIfType<[i8], CCPromoteToType<i16>>,
 
+  CCIfType<[i16], CCIfVarArg<CCAssignToStack<2, 2>>>,
   CCIfType<[i16], CCAssignToReg<[A0L, A1L, B0L, B1L]>>,
   //CCIfType<[i16], CCPromoteToType<i40>>,
 
   CCIfType<[i32], CCPromoteToType<i40>>,
 
+  CCIfType<[i40], CCIfVarArg<CCAssignToStack<6, 2>>>,
   // The first 4 integer arguments are passed in integer registers.
   CCIfType<[i40], CCAssignToReg<[A0, A1, B0, B1]>>,
   //CCIfType<[i40], CCAssignToRegWithShadow<[A0, A1, B0, B1], [A0L, A1L, B0L, B1L]>>//,

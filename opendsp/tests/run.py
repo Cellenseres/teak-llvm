@@ -513,6 +513,86 @@ static const mdct_lookup mdct_state = {
     return source,body,[0]*(2*(length+4))
 
 
+def varargs_case():
+    source='''
+typedef unsigned long long u64;
+typedef __builtin_va_list argument_list;
+__attribute__((noinline)) u32 consume_arguments(argument_list values,u16 count) {
+    u32 result=0;
+    u16 index;
+    for(index=0;index<count;++index) result+=__builtin_va_arg(values,u32)*(index+1u);
+    return result;
+}
+__attribute__((noinline)) u32 sum_arguments(u16 count,u32 bias,...) {
+    argument_list values,copied;
+    __builtin_va_start(values,bias);
+    __builtin_va_copy(copied,values);
+    u32 first=consume_arguments(values,count);
+    u32 second=consume_arguments(copied,count);
+    u32 third=count?__builtin_va_arg(values,u32):0;
+    __builtin_va_end(copied);
+    __builtin_va_end(values);
+    return bias+first+3u*second+5u*third;
+}
+__attribute__((noinline)) u32 argument_callback(u32 value) {return value*193u+17u;}
+__attribute__((noinline)) u32 mixed_arguments(u16 marker,u32 seed,const u16 *fixed,...) {
+    argument_list values;
+    __builtin_va_start(values,fixed);
+    s32 signed_value=__builtin_va_arg(values,s32);
+    const u16 *pointer=__builtin_va_arg(values,const u16 *);
+    u64 wide=__builtin_va_arg(values,u64);
+    u32 (*callback)(u32)=__builtin_va_arg(values,u32 (*)(u32));
+    u32 last=__builtin_va_arg(values,u32);
+    __builtin_va_end(values);
+    return marker+seed+*fixed+(u32)signed_value+*pointer+(u32)wide+
+           (u32)(wide>>32)+callback(last);
+}
+__attribute__((noinline)) u64 wide_arguments(u16 marker,u32 first,u16 second,u32 third,
+                                           const u16 *fourth,u32 fifth,...) {
+    argument_list values;
+    __builtin_va_start(values,fifth);
+    u64 left=__builtin_va_arg(values,u64);
+    u32 middle=__builtin_va_arg(values,u32);
+    u64 right=__builtin_va_arg(values,u64);
+    __builtin_va_end(values);
+    return (left^right)+middle+first+second+third+*fourth+fifth+marker;
+}
+typedef u32 (*variable_callback)(u16,u32,...);
+variable_callback selected_arguments=sum_arguments;
+volatile u32 argument_values[]={0,1,0xffffffffu,0x80000000u,0x7fffffffu,0x12345678u,0x89abcdefu,65535u};
+u16 argument_targets[]={0x1234,0x3456};
+'''
+    body,expected=['u32 result;','u64 wide;'],[]
+    values=[0,1,0xffffffff,0x80000000,0x7fffffff,0x12345678,0x89abcdef,65535]
+    mask=(1<<64)-1
+    for rotation in range(len(values)):
+        ordered=values[rotation:]+values[:rotation]
+        arguments=[f'argument_values[{(rotation+index)%len(values)}]' for index in range(len(values))]
+        for count in [0,1,2,3,4,7,8]:
+            total=sum(value*(index+1) for index,value in enumerate(ordered[:count]))
+            value=0x12345678+4*total+(5*ordered[0] if count else 0)
+            for function in ['sum_arguments','selected_arguments']:
+                body.extend([f'result={function}({count},0x12345678u,'+','.join(arguments)+');',
+                             'out[n++]=result;','out[n++]=result>>16;'])
+                expected.extend([value&65535,(value>>16)&65535])
+        wide=((ordered[0]<<32)|ordered[1])&mask
+        mixed=13+ordered[2]+0x1234+ordered[3]+0x3456+ordered[0]+ordered[1]+ordered[4]*193+17
+        body.extend([f'result=mixed_arguments(13,argument_values[{(rotation+2)%8}],argument_targets,',
+                     f'(s32)argument_values[{(rotation+3)%8}],argument_targets+1,',
+                     f'((u64){arguments[0]}<<32)|{arguments[1]},argument_callback,{arguments[4]});',
+                     'out[n++]=result;','out[n++]=result>>16;'])
+        expected.extend([mixed&65535,(mixed>>16)&65535])
+        right=((ordered[5]<<32)|ordered[6])&mask
+        value=((wide^right)+ordered[4]+ordered[2]+7+ordered[3]+0x3456+ordered[7]+19)&mask
+        body.extend([f'wide=wide_arguments(19,{arguments[2]},7,{arguments[3]},argument_targets+1,{arguments[7]},',
+                     f'((u64){arguments[0]}<<32)|{arguments[1]},{arguments[4]},',
+                     f'((u64){arguments[5]}<<32)|{arguments[6]});'])
+        for shift in [0,16,32,48]:
+            body.append(f'out[n++]=wide>>{shift};')
+            expected.append((value>>shift)&65535)
+    return source,body,expected
+
+
 def granules_case():
     source='''
 typedef unsigned long long u64;
@@ -947,7 +1027,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', default='-O2')
     parser.add_argument('--label')
-    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct', 'division', 'range_decoder', 'byte_order', 'dynamic_stack', 'size_types', 'granules'], default='comparisons')
+    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct', 'division', 'range_decoder', 'byte_order', 'dynamic_stack', 'size_types', 'granules', 'varargs'], default='comparisons')
     parser.add_argument('--max-steps',type=int,default=3000000)
     parser.add_argument('--vorbis-size',type=int,choices=[64,128,256,512,1024,2048,4096,8192],default=64)
     parser.add_argument('--vorbis-vector',type=int,choices=range(5),default=0)
@@ -962,7 +1042,9 @@ def main():
     factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'fft': fft_case, 'pointers': pointers_case, 'fft_math': fft_math_case, 'table_words': table_words_case, 'calls': calls_case, 'interpolate': interpolate_case, 'word_memory': word_memory_case, 'high_product': high_product_case}
     if args.max_steps < 1:
         parser.error('Step limit must be positive')
-    if args.case == 'granules':
+    if args.case == 'varargs':
+        functions,body,expected=varargs_case()
+    elif args.case == 'granules':
         functions,body,expected=granules_case()
     elif args.case == 'size_types':
         functions,body,expected=size_types_case()

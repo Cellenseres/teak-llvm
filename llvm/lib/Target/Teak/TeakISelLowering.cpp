@@ -145,6 +145,10 @@ TeakTargetLowering::TeakTargetLowering(const TeakTargetMachine &TeakTM)
 	setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i16, Custom);
 	setOperationAction(ISD::STACKSAVE, MVT::Other, Custom);
 	setOperationAction(ISD::STACKRESTORE, MVT::Other, Custom);
+	setOperationAction(ISD::VASTART, MVT::Other, Custom);
+	setOperationAction(ISD::VAARG, MVT::Other, Custom);
+	setOperationAction(ISD::VACOPY, MVT::Other, Expand);
+	setOperationAction(ISD::VAEND, MVT::Other, Expand);
 
 	setSchedulingPreference(Sched::RegPressure);
 
@@ -548,6 +552,37 @@ SDValue TeakTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
 	// Op.dump(&DAG);
 	switch (Op.getOpcode()) 
 	{
+		case ISD::VASTART: {
+			SDLoc Location(Op);
+			MachineFunction &Function = DAG.getMachineFunction();
+			int FrameIndex = Function.getInfo<TeakFunctionInfo>()->getVarArgsFrameIndex();
+			SDValue Address = DAG.getFrameIndex(FrameIndex, MVT::i16);
+			return DAG.getStore(Op.getOperand(0), Location, Address, Op.getOperand(1),
+				MachinePointerInfo(cast<SrcValueSDNode>(Op.getOperand(2))->getValue()), 2);
+		}
+		case ISD::VAARG: {
+			SDLoc Location(Op);
+			EVT ValueType = Op.getValueType();
+			assert((ValueType == MVT::i16 || ValueType == MVT::i40) && "Unsupported argument type");
+			SDValue List = Op.getOperand(1);
+			MachinePointerInfo ListInfo(cast<SrcValueSDNode>(Op.getOperand(2))->getValue());
+			SDValue Address = DAG.getLoad(MVT::i16, Location, Op.getOperand(0), List, ListInfo, 2);
+			SDValue Chain = Address.getValue(1);
+			SDValue Value = DAG.getConstant(0, Location, ValueType);
+			unsigned WordCount = ValueType == MVT::i16 ? 1 : 3;
+			for (unsigned Index = 0; Index < WordCount; ++Index) {
+				SDValue Word = DAG.getLoad(MVT::i16, Location, Chain,
+					DAG.getMemBasePlusOffset(Address, Index, Location), MachinePointerInfo(), 2);
+				Chain = Word.getValue(1);
+				SDValue Part = DAG.getZExtOrTrunc(Word, Location, ValueType);
+				Part = DAG.getNode(ISD::SHL, Location, ValueType, Part,
+					DAG.getConstant((WordCount - Index - 1) * 16, Location, MVT::i40));
+				Value = DAG.getNode(ISD::OR, Location, ValueType, Value, Part);
+			}
+			SDValue Next = DAG.getMemBasePlusOffset(Address, WordCount, Location);
+			Chain = DAG.getStore(Chain, Location, Next, List, ListInfo, 2);
+			return DAG.getMergeValues({Value, Chain}, Location);
+		}
 		case ISD::STACKSAVE:
 			return DAG.getCopyFromReg(Op.getOperand(0), SDLoc(Op), Teak::SP, MVT::i16);
 		case ISD::STACKRESTORE: {
@@ -1070,10 +1105,6 @@ SDValue TeakTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 
   CLI.IsTailCall = false;
 
-  if (isVarArg) {
-	llvm_unreachable("Unimplemented");
-  }
-
   // Analyze operands of the call, assigning locations to each operand.
   SmallVector<CCValAssign, 16> ArgLocs;
   CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(), ArgLocs,
@@ -1224,8 +1255,6 @@ SDValue TeakTargetLowering::LowerCallResult(
 	SDValue Chain, SDValue InGlue, CallingConv::ID CallConv, bool isVarArg,
 	const SmallVectorImpl<ISD::InputArg> &Ins, const SDLoc &dl,
 	SelectionDAG &DAG, SmallVectorImpl<SDValue> &InVals) const {
-  assert(!isVarArg && "Unsupported");
-
   // Assign locations to each value returned by this call.
   SmallVector<CCValAssign, 16> RVLocs;
   CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(), RVLocs,
@@ -1260,14 +1289,17 @@ SDValue TeakTargetLowering::LowerFormalArguments(
   MachineFunction &MF = DAG.getMachineFunction();
   MachineRegisterInfo &RegInfo = MF.getRegInfo();
 
-  assert(!isVarArg && "VarArg not supported");
-
   // Assign locations to all of the incoming arguments.
   SmallVector<CCValAssign, 16> ArgLocs;
   CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(), ArgLocs,
 				 *DAG.getContext());
 
   CCInfo.AnalyzeFormalArguments(Ins, CC_Teak);
+
+  if (isVarArg) {
+	int FrameIndex = MF.getFrameInfo().CreateFixedObject(2, CCInfo.getNextStackOffset() + 4, true);
+	MF.getInfo<TeakFunctionInfo>()->setVarArgsFrameIndex(FrameIndex);
+  }
 
   for (auto &VA : ArgLocs) {
 	if (VA.isRegLoc()) {
@@ -1347,10 +1379,6 @@ TeakTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
 								const SmallVectorImpl<ISD::OutputArg> &Outs,
 								const SmallVectorImpl<SDValue> &OutVals,
 								const SDLoc &dl, SelectionDAG &DAG) const {
-  if (isVarArg) {
-	report_fatal_error("VarArg not supported");
-  }
-
   // CCValAssign - represent the assignment of
   // the return value to a location
   SmallVector<CCValAssign, 16> RVLocs;
