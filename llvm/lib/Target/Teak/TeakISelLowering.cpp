@@ -134,6 +134,12 @@ TeakTargetLowering::TeakTargetLowering(const TeakTargetMachine &TeakTM)
 	setOperationAction(ISD::SRL, MVT::i40, Custom);
 	setOperationAction(ISD::SRA, MVT::i16, Custom);
 	setOperationAction(ISD::SRA, MVT::i40, Custom);
+	setOperationAction(ISD::SHL_PARTS, MVT::i40, Expand);
+	setOperationAction(ISD::SRL_PARTS, MVT::i40, Expand);
+	setOperationAction(ISD::SRA_PARTS, MVT::i40, Expand);
+	setLibcallName(RTLIB::SHL_I64, nullptr);
+	setLibcallName(RTLIB::SRL_I64, nullptr);
+	setLibcallName(RTLIB::SRA_I64, nullptr);
 
 	setStackPointerRegisterToSaveRestore(Teak::SP);
 	setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i16, Custom);

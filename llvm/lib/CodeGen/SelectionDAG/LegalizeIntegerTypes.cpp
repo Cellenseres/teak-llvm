@@ -1959,6 +1959,21 @@ std::pair <SDValue, SDValue> DAGTypeLegalizer::ExpandAtomic(SDNode *Node) {
                          Node->getOperand(0));
 }
 
+static SDValue normalizeExpandedHigh(SDValue High, unsigned ValidBits,
+                                    bool Signed, const SDLoc &Location,
+                                    SelectionDAG &DAG) {
+  EVT Type = High.getValueType();
+  unsigned Width = Type.getSizeInBits();
+  if (ValidBits >= Width)
+    return High;
+  if (!Signed)
+    return DAG.getNode(ISD::AND, Location, Type, High,
+        DAG.getConstant(APInt::getLowBitsSet(Width, ValidBits), Location, Type));
+  SDValue Shift = DAG.getConstant(Width - ValidBits, Location, Type);
+  return DAG.getNode(ISD::SRA, Location, Type,
+      DAG.getNode(ISD::SHL, Location, Type, High, Shift), Shift);
+}
+
 /// N is a shift by a value that needs to be expanded,
 /// and the shift amount is a constant 'Amt'.  Expand the operation.
 void DAGTypeLegalizer::ExpandShiftByConstant(SDNode *N, const APInt &Amt,
@@ -1967,6 +1982,8 @@ void DAGTypeLegalizer::ExpandShiftByConstant(SDNode *N, const APInt &Amt,
   // Expand the incoming operand to be shifted, so that we have its parts
   SDValue InL, InH;
   GetExpandedInteger(N->getOperand(0), InL, InH);
+  InH = normalizeExpandedHigh(InH, N->getValueType(0).getSizeInBits() -
+      InL.getValueType().getSizeInBits(), N->getOpcode() == ISD::SRA, DL, DAG);
 
   // Though Amt shouldn't usually be 0, it's possible. E.g. when legalization
   // splitted a vector shift, like this: <op1, op2> SHL <0, 2>.
@@ -2057,8 +2074,8 @@ ExpandShiftWithKnownAmountBit(SDNode *N, SDValue &Lo, SDValue &Hi) {
   EVT ShTy = Amt.getValueType();
   unsigned ShBits = ShTy.getScalarSizeInBits();
   unsigned NVTBits = NVT.getScalarSizeInBits();
-  assert(isPowerOf2_32(NVTBits) &&
-         "Expanded integer type size not a power of two!");
+  if (!isPowerOf2_32(NVTBits))
+    return false;
   SDLoc dl(N);
 
   APInt HighBitMask = APInt::getHighBitsSet(ShBits, ShBits - Log2_32(NVTBits));
@@ -2143,13 +2160,13 @@ ExpandShiftWithUnknownAmountBit(SDNode *N, SDValue &Lo, SDValue &Hi) {
   EVT NVT = TLI.getTypeToTransformTo(*DAG.getContext(), N->getValueType(0));
   EVT ShTy = Amt.getValueType();
   unsigned NVTBits = NVT.getSizeInBits();
-  assert(isPowerOf2_32(NVTBits) &&
-         "Expanded integer type size not a power of two!");
   SDLoc dl(N);
 
   // Get the incoming operand to be shifted.
   SDValue InL, InH;
   GetExpandedInteger(N->getOperand(0), InL, InH);
+  InH = normalizeExpandedHigh(InH, N->getValueType(0).getSizeInBits() - NVTBits,
+      N->getOpcode() == ISD::SRA, dl, DAG);
 
   SDValue NVBitsNode = DAG.getConstant(NVTBits, dl, ShTy);
   SDValue AmtExcess = DAG.getNode(ISD::SUB, dl, ShTy, Amt, NVBitsNode);
@@ -2522,6 +2539,9 @@ void DAGTypeLegalizer::ExpandIntRes_ANY_EXTEND(SDNode *N,
     // The low part is any extension of the input (which degenerates to a copy).
     Lo = DAG.getNode(ISD::ANY_EXTEND, dl, NVT, Op);
     Hi = DAG.getUNDEF(NVT);   // The high part is undefined.
+  } else if (getTypeAction(Op.getValueType()) == TargetLowering::TypeExpandInteger &&
+             TLI.getTypeToTransformTo(*DAG.getContext(), Op.getValueType()) == NVT) {
+    GetExpandedInteger(Op, Lo, Hi);
   } else {
     // For example, extension of an i48 to an i64.  The operand type necessarily
     // promotes to the result type, so will end up being expanded too.
@@ -2825,6 +2845,18 @@ void DAGTypeLegalizer::ExpandIntRes_LOAD(LoadSDNode *N,
   SDLoc dl(N);
 
   assert(NVT.isByteSized() && "Expanded type not byte sized!");
+
+  if (!isPowerOf2_32(NVT.getSizeInBits()) &&
+      N->getMemoryVT().bitsGT(NVT)) {
+    SDValue Loaded = DAG.getLoad(N->getMemoryVT(), dl, Ch, Ptr,
+        N->getPointerInfo(), Alignment, MMOFlags, AAInfo);
+    unsigned Extension = ExtType == ISD::SEXTLOAD ? ISD::SIGN_EXTEND :
+        ExtType == ISD::ZEXTLOAD ? ISD::ZERO_EXTEND : ISD::ANY_EXTEND;
+    SDValue Extended = DAG.getNode(Extension, dl, VT, Loaded);
+    ReplaceValueWith(SDValue(N, 0), Extended);
+    ReplaceValueWith(SDValue(N, 1), Loaded.getValue(1));
+    return;
+  }
 
   if (N->getMemoryVT().bitsLE(NVT)) {
     EVT MemVT = N->getMemoryVT();
@@ -3439,6 +3471,10 @@ void DAGTypeLegalizer::ExpandIntRes_SIGN_EXTEND(SDNode *N,
     Hi = DAG.getNode(
         ISD::SRA, dl, NVT, Lo,
         DAG.getConstant(LoSize - 1, dl, TLI.getPointerTy(DAG.getDataLayout())));
+  } else if (getTypeAction(Op.getValueType()) == TargetLowering::TypeExpandInteger &&
+             TLI.getTypeToTransformTo(*DAG.getContext(), Op.getValueType()) == NVT) {
+    GetExpandedInteger(Op, Lo, Hi);
+    Hi = normalizeExpandedHigh(Hi, Op.getValueSizeInBits() - NVT.getSizeInBits(), true, dl, DAG);
   } else {
     // For example, extension of an i48 to an i64.  The operand type necessarily
     // promotes to the result type, so will end up being expanded too.
@@ -3704,6 +3740,10 @@ void DAGTypeLegalizer::ExpandIntRes_ZERO_EXTEND(SDNode *N,
     // The low part is zero extension of the input (degenerates to a copy).
     Lo = DAG.getNode(ISD::ZERO_EXTEND, dl, NVT, N->getOperand(0));
     Hi = DAG.getConstant(0, dl, NVT);   // The high part is just a zero.
+  } else if (getTypeAction(Op.getValueType()) == TargetLowering::TypeExpandInteger &&
+             TLI.getTypeToTransformTo(*DAG.getContext(), Op.getValueType()) == NVT) {
+    GetExpandedInteger(Op, Lo, Hi);
+    Hi = normalizeExpandedHigh(Hi, Op.getValueSizeInBits() - NVT.getSizeInBits(), false, dl, DAG);
   } else {
     // For example, extension of an i48 to an i64.  The operand type necessarily
     // promotes to the result type, so will end up being expanded too.
@@ -3820,6 +3860,10 @@ void DAGTypeLegalizer::IntegerExpandSetCCOperands(SDValue &NewLHS,
   SDValue LHSLo, LHSHi, RHSLo, RHSHi;
   GetExpandedInteger(NewLHS, LHSLo, LHSHi);
   GetExpandedInteger(NewRHS, RHSLo, RHSHi);
+  unsigned HighBits = NewLHS.getValueType().getSizeInBits() - LHSLo.getValueType().getSizeInBits();
+  bool Signed = ISD::isSignedIntSetCC(CCCode);
+  LHSHi = normalizeExpandedHigh(LHSHi, HighBits, Signed, dl, DAG);
+  RHSHi = normalizeExpandedHigh(RHSHi, HighBits, Signed, dl, DAG);
 
   if (CCCode == ISD::SETEQ || CCCode == ISD::SETNE) {
     if (RHSLo == RHSHi) {

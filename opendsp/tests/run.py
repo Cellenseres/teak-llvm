@@ -513,6 +513,67 @@ static const mdct_lookup mdct_state = {
     return source,body,[0]*(2*(length+4))
 
 
+def granules_case():
+    source='''
+typedef unsigned long long u64;
+typedef signed long long s64;
+__attribute__((noinline)) u64 read_granule(const u64 *value) {return *value;}
+__attribute__((noinline)) u16 granule_flags(const s64 *value) {
+    s64 loaded=*value;
+    return (loaded==-1)|((loaded<0)<<1)|((loaded<-1)<<2)|((loaded>=0)<<3)|
+           ((loaded>0x7fffffffLL)<<4)|((loaded<-0x80000000LL)<<5);
+}
+__attribute__((noinline)) void granule_math(const u16 *input,u16 *output,u16 shift) {
+    u64 left=(u64)input[0]|((u64)input[1]<<16)|((u64)input[2]<<32)|((u64)input[3]<<48);
+    u64 right=(u64)input[4]|((u64)input[5]<<16)|((u64)input[6]<<32)|((u64)input[7]<<48);
+    u64 stored[2]={left,right};
+    left=read_granule(stored); right=read_granule(stored+1);
+    u64 values[9]={left+right,left-right,left*right,left^right,left&right,left|right,
+                  left<<shift,left>>shift,(u64)((s64)left>>shift)};
+    u16 index,word,n=0;
+    for(index=0;index<9;++index) {
+        u64 value=values[index];
+        for(word=0;word<4;++word) {output[n++]=value; value>>=16;}
+    }
+    output[n]=(left<right)|((left<=right)<<1)|((left>right)<<2)|((left>=right)<<3)|
+              ((left==right)<<4)|((left!=right)<<5)|(((s64)left<(s64)right)<<6)|
+              (((s64)left<=(s64)right)<<7)|(((s64)left>(s64)right)<<8)|(((s64)left>=(s64)right)<<9);
+    output[n+1]=granule_flags((const s64 *)stored);
+    output[n+2]=granule_flags((const s64 *)(stored+1));
+}
+'''
+    mask=(1<<64)-1
+    pairs=[(0,0),(0,mask),(mask,1),(mask,mask),(1<<63,1),((1<<63)-1,1<<63),
+           (1<<63,(1<<63)-1),(1<<40,1<<39),(1<<32,(1<<32)-1),(1,mask),
+           (0x123456789abcdef0,0xfedcba9876543210),((1<<63)-1,(1<<63)-1)]
+    state=0x1f123bb598176a3d
+    for _ in range(32):
+        state=(state*6364136223846793005+1442695040888963407)&mask
+        left=state
+        state=(state*6364136223846793005+1442695040888963407)&mask
+        pairs.append((left,state))
+    shifts=[0,1,15,16,31,32,39,40,47,48,63]
+    packed,body,expected=[],[],[]
+    for index,(left,right) in enumerate(pairs):
+        offset=len(packed)
+        packed.extend((value>>shift)&65535 for value in [left,right] for shift in [0,16,32,48])
+        shift=shifts[index%len(shifts)]
+        signed_left=left-(1<<64) if left>>63 else left
+        signed_right=right-(1<<64) if right>>63 else right
+        values=[left+right,left-right,left*right,left^right,left&right,left|right,
+                left<<shift,left>>shift,signed_left>>shift]
+        expected.extend(((value&mask)>>position)&65535 for value in values for position in [0,16,32,48])
+        conditions=[left<right,left<=right,left>right,left>=right,left==right,left!=right,
+                    signed_left<signed_right,signed_left<=signed_right,signed_left>signed_right,signed_left>=signed_right]
+        expected.append(sum(int(value)<<bit for bit,value in enumerate(conditions)))
+        for value in [signed_left,signed_right]:
+            flags=[value==-1,value<0,value<-1,value>=0,value>0x7fffffff,value<-0x80000000]
+            expected.append(sum(int(flag)<<bit for bit,flag in enumerate(flags)))
+        body.extend([f'granule_math((const u16 *)granule_inputs+{offset},out+n,{shift});','n+=39;'])
+    source+='volatile u16 granule_inputs[]={'+','.join(map(str,packed))+'};\n'
+    return source,body,expected
+
+
 def size_types_case():
     source='''
 __attribute__((noinline)) u32 variable_size(u16 count,u32 scale) {
@@ -886,7 +947,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', default='-O2')
     parser.add_argument('--label')
-    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct', 'division', 'range_decoder', 'byte_order', 'dynamic_stack', 'size_types'], default='comparisons')
+    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct', 'division', 'range_decoder', 'byte_order', 'dynamic_stack', 'size_types', 'granules'], default='comparisons')
     parser.add_argument('--max-steps',type=int,default=3000000)
     parser.add_argument('--vorbis-size',type=int,choices=[64,128,256,512,1024,2048,4096,8192],default=64)
     parser.add_argument('--vorbis-vector',type=int,choices=range(5),default=0)
@@ -901,7 +962,9 @@ def main():
     factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'fft': fft_case, 'pointers': pointers_case, 'fft_math': fft_math_case, 'table_words': table_words_case, 'calls': calls_case, 'interpolate': interpolate_case, 'word_memory': word_memory_case, 'high_product': high_product_case}
     if args.max_steps < 1:
         parser.error('Step limit must be positive')
-    if args.case == 'size_types':
+    if args.case == 'granules':
+        functions,body,expected=granules_case()
+    elif args.case == 'size_types':
         functions,body,expected=size_types_case()
     elif args.case == 'dynamic_stack':
         functions,body,expected=dynamic_stack_case()

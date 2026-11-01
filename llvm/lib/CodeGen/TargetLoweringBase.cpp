@@ -828,6 +828,11 @@ TargetLoweringBase::getTypeConversion(LLVMContext &Context, EVT VT) const {
   if (!VT.isVector()) {
     assert(VT.isInteger() && "Float types must be simple");
     unsigned BitSize = VT.getSizeInBits();
+    if (BitSize % 2 == 0) {
+      EVT HalfType = EVT::getIntegerVT(Context, BitSize / 2);
+      if (isTypeLegal(HalfType))
+        return LegalizeKind(TypeExpandInteger, HalfType);
+    }
     // First promote to a power-of-two size, then expand if necessary.
     if (BitSize < 8 || !isPowerOf2_32(BitSize)) {
       EVT NVT = VT.getRoundIntegerType(Context);
