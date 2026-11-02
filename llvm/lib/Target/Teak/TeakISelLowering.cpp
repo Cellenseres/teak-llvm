@@ -806,11 +806,11 @@ SDValue TeakTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
 			SDLoc Location(Op);
 			SDValue LeftOperand = Op.getOperand(0);
 			SDValue RightOperand = Op.getOperand(1);
-			SDValue LeftDigits[4], RightDigits[4];
-			SDValue Mask = DAG.getConstant(1023, Location, MVT::i40);
-			SDValue DigitWidth = DAG.getConstant(10, Location, MVT::i40);
-			for (unsigned Index = 0; Index < 4; ++Index) {
-				SDValue Shift = DAG.getConstant(Index * 10, Location, MVT::i40);
+			SDValue LeftDigits[3], RightDigits[3];
+			SDValue Mask = DAG.getConstant(32767, Location, MVT::i40);
+			SDValue DigitWidth = DAG.getConstant(15, Location, MVT::i40);
+			for (unsigned Index = 0; Index < 3; ++Index) {
+				SDValue Shift = DAG.getConstant(Index * 15, Location, MVT::i40);
 				LeftDigits[Index] = DAG.getNode(ISD::TRUNCATE, Location, MVT::i16,
 					DAG.getNode(ISD::AND, Location, MVT::i40,
 						DAG.getNode(ISD::SRL, Location, MVT::i40, LeftOperand, Shift), Mask));
@@ -820,21 +820,25 @@ SDValue TeakTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
 			}
 			SDValue Carry = DAG.getConstant(0, Location, MVT::i40);
 			SDValue Result = Carry;
-			for (unsigned Column = 0; Column < 8; ++Column) {
+			for (unsigned Column = 0; Column < 6; ++Column) {
 				SDValue Partial = Carry;
-				for (unsigned Index = 0; Index < 4; ++Index) {
-					if (Column < Index || Column - Index >= 4)
+				for (unsigned Index = 0; Index < 3; ++Index) {
+					if (Column < Index || Column - Index >= 3)
 						continue;
 					Partial = DAG.getNode(ISD::ADD, Location, MVT::i40, Partial,
 						DAG.getNode(TeakISD::MPY, Location, MVT::i40,
 							LeftDigits[Index], RightDigits[Column - Index]));
 				}
 				Carry = DAG.getNode(ISD::SRL, Location, MVT::i40, Partial, DigitWidth);
-				if (Column >= 4)
-					Result = DAG.getNode(ISD::OR, Location, MVT::i40, Result,
-						DAG.getNode(ISD::SHL, Location, MVT::i40,
-							DAG.getNode(ISD::AND, Location, MVT::i40, Partial, Mask),
-							DAG.getConstant((Column - 4) * 10, Location, MVT::i40)));
+				unsigned BitOffset = Column * 15;
+				if (BitOffset + 15 > 40) {
+					SDValue Digit = DAG.getNode(ISD::AND, Location, MVT::i40, Partial, Mask);
+					Digit = DAG.getNode(BitOffset < 40 ? ISD::SRL : ISD::SHL,
+						Location, MVT::i40, Digit,
+						DAG.getConstant(BitOffset < 40 ? 40 - BitOffset : BitOffset - 40,
+							Location, MVT::i40));
+					Result = DAG.getNode(ISD::OR, Location, MVT::i40, Result, Digit);
+				}
 			}
 			if (Op.getOpcode() == ISD::MULHS) {
 				SDValue SignShift = DAG.getConstant(39, Location, MVT::i40);

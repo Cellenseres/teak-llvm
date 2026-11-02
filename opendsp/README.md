@@ -330,3 +330,12 @@ LPC filter units pass 1,888 output, guard and state words across eight frames.
 Cases cover 8, 12 and 16 kHz, voiced and unvoiced excitation, and both LPC
 orders. Dynamic scratch uses VLAs. This validates synthesis rather than full
 packet reconstruction. See `opendsp/validation/silk-core-20261025.json`.
+
+High products now use three 15-bit digits and nine native partial products,
+replacing sixteen ten-bit products. Seven related groups pass 31,382 words.
+The full-width product group drops from 1,294,334 to 929,960 emulator steps.
+The largest mixed Vorbis transform drops from 25,597,722 to 16,632,881 steps;
+its object shrinks from 247,964 to 161,456 bytes. SILK synthesis increases
+slightly from 10,359,579 to 10,395,563 steps, so this is not a uniform speedup.
+These figures measure emulator work and object size, not physical deadlines
+or complete firmware fit. See `opendsp/validation/wide-digits-20261025.json`.
