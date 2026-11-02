@@ -1,0 +1,20 @@
+{
+  "base_commit": "ca5373fe7fd",
+  "physical_hardware": false,
+  "compiler_kind": "Intermediate split-integer candidate before extending-load fix",
+  "compiler_sha256": "1c293708bc545bd408e4c300b8c1f5d7fa2e46b557d46b906e1dfffa21ca0c78",
+  "matrices": {
+    "opus": {
+      "case_count": 100,
+      "comparisons": 80720,
+      "maximum_steps": 2550831,
+      "errors": 0
+    },
+    "vorbis": {
+      "case_count": 40,
+      "comparisons": 163360,
+      "maximum_steps": 25597722,
+      "errors": 0
+    }
+  }
+}

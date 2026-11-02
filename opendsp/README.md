@@ -322,3 +322,11 @@ words. Opus main and CELT decoder units now compile, bringing the probe to
 20 of 23 units. Byte-containing records still block SILK and Ogg framing.
 See `opendsp/validation/varargs-20261025.json`. Full packet decoding and physical
 playback remain unverified.
+
+The optional `silk_core` group requires an Opus source tree supporting
+`OPUS_WORD_STORAGE`. Native signed-byte fields use 16-bit storage; the host
+reference retains ordinary eight-bit fields. The original SILK synthesis and
+LPC filter units pass 1,888 output, guard and state words across eight frames.
+Cases cover 8, 12 and 16 kHz, voiced and unvoiced excitation, and both LPC
+orders. Dynamic scratch uses VLAs. This validates synthesis rather than full
+packet reconstruction. See `opendsp/validation/silk-core-20261025.json`.

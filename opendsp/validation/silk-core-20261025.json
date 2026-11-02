@@ -1,0 +1,72 @@
+{
+  "compiler_commit": "6bc850cacd5",
+  "compiler_hashes": {
+    "cc1-size-types.exe": "f54cd88dbca64bff87b8bb8b4b8ba187ba778734ad0f56ece11a1e2f0196a6de",
+    "llc-varargs.exe": "dc652f2d59dd084df82002268d76f89656979fa02d9ba9914d3214b71afa5235",
+    "ld.lld.exe": "61941800499a832d6964fd521aeb56cc6bc1124ecb73edd6f890a0a1201196f0"
+  },
+  "physical_hardware": false,
+  "native_word_storage": true,
+  "host_reference_word_storage": false,
+  "source_units": [
+    "silk/decode_core.c",
+    "silk/LPC_analysis_filter.c",
+    "silk/tables_other.c"
+  ],
+  "frames": 8,
+  "configurations": [
+    [
+      8,
+      2,
+      0,
+      0,
+      10
+    ],
+    [
+      12,
+      4,
+      1,
+      1,
+      10
+    ],
+    [
+      16,
+      4,
+      1,
+      3,
+      16
+    ],
+    [
+      16,
+      2,
+      0,
+      4,
+      16
+    ]
+  ],
+  "configuration_fields": [
+    "rate_khz",
+    "subframes",
+    "voiced",
+    "pattern",
+    "lpc_order"
+  ],
+  "image_bytes": {
+    "program": 28490,
+    "data": 9596
+  },
+  "result": {
+    "completed": true,
+    "comparisons": 1888,
+    "errors": 0,
+    "steps": 10359579,
+    "step_limit": 100000000,
+    "mailbox": 12288,
+    "case": "silk_core",
+    "optimization": "-O2",
+    "diagnostics": [],
+    "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+    "physical_hardware": false
+  },
+  "scope": "SILK synthesis, output guards and LPC state; not full packet decoding"
+}

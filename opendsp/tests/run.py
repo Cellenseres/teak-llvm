@@ -513,6 +513,86 @@ static const mdct_lookup mdct_state = {
     return source,body,[0]*(2*(length+4))
 
 
+def silk_core_case():
+    source='''
+#include "main.h"
+#ifndef HOST_REFERENCE
+_Static_assert(sizeof(opus_int8)==2,"Signed bytes require word storage");
+void *memcpy(void *destination,const void *input,size_t bytes) {
+    u16 *target=destination;
+    const u16 *origin=input;
+    size_t index;
+    for(index=0;index<bytes/2;++index) target[index]=origin[index];
+    return destination;
+}
+void *memset(void *destination,int value,size_t bytes) {
+    u16 *target=destination;
+    size_t index;
+    for(index=0;index<bytes/2;++index) target[index]=(value&255)*257;
+    return destination;
+}
+#endif
+silk_decoder_state speech_state;
+silk_decoder_control speech_control;
+s16 speech_pulses[MAX_FRAME_LENGTH];
+s16 speech_output[MAX_FRAME_LENGTH+2];
+__attribute__((noinline)) void prepare_speech(u16 rate,u16 subframes,u16 voiced,u16 pattern,u16 order) {
+    speech_state=(silk_decoder_state){0};
+    speech_control=(silk_decoder_control){0};
+    speech_state.fs_kHz=rate;
+    speech_state.nb_subfr=subframes;
+    speech_state.subfr_length=rate*5;
+    speech_state.frame_length=rate*5*subframes;
+    speech_state.ltp_mem_length=rate*20;
+    speech_state.LPC_order=order;
+    speech_state.prev_gain_Q16=65536;
+    speech_state.indices.signalType=voiced?TYPE_VOICED:TYPE_UNVOICED;
+    speech_state.indices.quantOffsetType=pattern&1;
+    speech_state.indices.NLSFInterpCoef_Q2=(pattern&1)?2:4;
+    speech_state.indices.Seed=pattern&3;
+    speech_control.LTP_scale_Q14=16384;
+    u16 index;
+    for(index=0;index<MAX_NB_SUBFR;++index) {
+        speech_control.Gains_Q16[index]=65536+index*16384;
+        speech_control.pitchL[index]=rate*5;
+        speech_control.LTPCoef_Q14[index*LTP_ORDER+2]=4096;
+    }
+    speech_control.PredCoef_Q12[0][0]=1024;
+    speech_control.PredCoef_Q12[1][0]=768;
+    speech_control.PredCoef_Q12[0][1]=-256;
+    speech_control.PredCoef_Q12[1][1]=256;
+    for(index=0;index<MAX_LPC_ORDER;++index) speech_state.sLPC_Q14_buf[index]=(s32)(index*17)-128;
+    for(index=0;index<sizeof(speech_state.outBuf)/sizeof(speech_state.outBuf[0]);++index)
+        speech_state.outBuf[index]=(index*19u)%127-63;
+    for(index=0;index<speech_state.frame_length;++index)
+        speech_pulses[index]=pattern==0?0:(s16)((index*31u+pattern*17u)%17)-8;
+}
+__attribute__((noinline)) void decode_speech(void) {
+    u16 index;
+    speech_output[0]=0x1234;
+    speech_output[speech_state.frame_length+1]=0x2345;
+    silk_decode_core(&speech_state,&speech_control,speech_output+1,speech_pulses,0);
+    for(index=0;index<speech_state.ltp_mem_length-speech_state.frame_length;++index)
+        speech_state.outBuf[index]=speech_state.outBuf[index+speech_state.frame_length];
+    for(index=0;index<speech_state.frame_length;++index)
+        speech_state.outBuf[speech_state.ltp_mem_length-speech_state.frame_length+index]=speech_output[index+1];
+}
+'''
+    body=['u16 sample_index;','u32 state_word;']
+    words=0
+    for rate,subframes,voiced,pattern,order in [(8,2,0,0,10),(12,4,1,1,10),(16,4,1,3,16),(16,2,0,4,16)]:
+        body.append(f'prepare_speech({rate},{subframes},{voiced},{pattern},{order});')
+        for _ in range(2):
+            body.extend(['decode_speech();',
+                         f'for(sample_index=0;sample_index<{rate*5*subframes+2};++sample_index) out[n++]=speech_output[sample_index];',
+                         'for(sample_index=0;sample_index<MAX_LPC_ORDER;++sample_index) {',
+                         'state_word=speech_state.sLPC_Q14_buf[sample_index];',
+                         'out[n++]=state_word;out[n++]=state_word>>16;}',
+                         'state_word=speech_state.prev_gain_Q16;out[n++]=state_word;out[n++]=state_word>>16;'])
+            words+=rate*5*subframes+2+2*16+2
+    return source,body,[0]*words
+
+
 def varargs_case():
     source='''
 typedef unsigned long long u64;
@@ -1027,7 +1107,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', default='-O2')
     parser.add_argument('--label')
-    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct', 'division', 'range_decoder', 'byte_order', 'dynamic_stack', 'size_types', 'granules', 'varargs'], default='comparisons')
+    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct', 'division', 'range_decoder', 'byte_order', 'dynamic_stack', 'size_types', 'granules', 'varargs', 'silk_core'], default='comparisons')
     parser.add_argument('--max-steps',type=int,default=3000000)
     parser.add_argument('--vorbis-size',type=int,choices=[64,128,256,512,1024,2048,4096,8192],default=64)
     parser.add_argument('--vorbis-vector',type=int,choices=range(5),default=0)
@@ -1042,7 +1122,9 @@ def main():
     factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'fft': fft_case, 'pointers': pointers_case, 'fft_math': fft_math_case, 'table_words': table_words_case, 'calls': calls_case, 'interpolate': interpolate_case, 'word_memory': word_memory_case, 'high_product': high_product_case}
     if args.max_steps < 1:
         parser.error('Step limit must be positive')
-    if args.case == 'varargs':
+    if args.case == 'silk_core':
+        functions,body,expected=silk_core_case()
+    elif args.case == 'varargs':
         functions,body,expected=varargs_case()
     elif args.case == 'granules':
         functions,body,expected=granules_case()
@@ -1091,9 +1173,11 @@ def main():
              '-ffunction-sections', '-fdata-sections', '-nostdlib', '-integrated-as', '-I'+str(HERE)]
     upstream_flags = ['-DFIXED_POINT', '-DOPUS_BUILD', '-DHAVE_STDINT_H', '-DHAVE_INTTYPES_H']
     includes = ['-I'+str(HERE/'include'), *['-I'+str(OPUS/p) for p in ['include','celt','silk','.']]]
-    if args.case in ['fft','fft_math','mdct','range_decoder']:
-        upstream_flags += ['-DNONTHREADSAFE_PSEUDOSTACK']
+    if args.case in ['fft','fft_math','mdct','range_decoder','silk_core']:
+        upstream_flags += ['-DVAR_ARRAYS'] if args.case=='silk_core' else ['-DNONTHREADSAFE_PSEUDOSTACK']
         flags += upstream_flags + includes
+        if args.case=='silk_core':
+            flags += ['-DOPUS_WORD_STORAGE','-fwrapv']
     vorbis_includes=['-I'+str(HERE/'config'),'-I'+str(OGG/'include'),'-I'+str(TREMOR)]
     if args.case == 'vorbis_mdct':
         flags += ['-fwrapv', '-DBYTE_ORDER=4321', '-DLITTLE_ENDIAN=1234',
@@ -1116,14 +1200,14 @@ def main():
         obj = BUILD/(ir_source.stem+'.o')
         command([CC, '--target=teak', '-O2', '-integrated-as', '-c', ir_source, '-o', obj], ir_source.stem+'.log')
         objects.append(obj)
-    if args.case in ['sort', 'nlsf', 'silk_math', 'fft', 'interpolate','mdct','range_decoder']:
-        units = ['entdec','entcode'] if args.case=='range_decoder' else ['kiss_fft','mdct'] if args.case == 'mdct' else ['interpolate'] if args.case == 'interpolate' else ['kiss_fft'] if args.case == 'fft' else ['sum_sqr_shift', 'bwexpander_32', 'lin2log'] if args.case == 'silk_math' else ['sort'] + (['NLSF_stabilize'] if args.case == 'nlsf' else [])
+    if args.case in ['sort', 'nlsf', 'silk_math', 'fft', 'interpolate','mdct','range_decoder','silk_core']:
+        units = ['decode_core','LPC_analysis_filter','tables_other'] if args.case=='silk_core' else ['entdec','entcode'] if args.case=='range_decoder' else ['kiss_fft','mdct'] if args.case == 'mdct' else ['interpolate'] if args.case == 'interpolate' else ['kiss_fft'] if args.case == 'fft' else ['sum_sqr_shift', 'bwexpander_32', 'lin2log'] if args.case == 'silk_math' else ['sort'] + (['NLSF_stabilize'] if args.case == 'nlsf' else [])
         directory = OPUS/('celt' if args.case in ['fft','mdct','range_decoder'] else 'silk')
         for name in units:
             obj = BUILD / (name+'.o')
             command([CC, *flags, *upstream_flags, *includes, '-c', directory/(name+'.c'), '-o', obj], name+'.log')
             objects.append(obj)
-        if args.case in ['nlsf', 'silk_math', 'fft', 'interpolate','mdct','range_decoder']:
+        if args.case in ['nlsf', 'silk_math', 'fft', 'interpolate','mdct','range_decoder','silk_core']:
             host = BUILD/'host-reference'
             command(['cc', '-O2', '-fwrapv', '-DHOST_REFERENCE', '-I'+str(HERE), *upstream_flags,
                      *['-I'+str(OPUS/p) for p in ['include','celt','silk','.']], source,
@@ -1153,7 +1237,7 @@ def main():
         command(['g++', '-O2', '-std=c++17', '-I'+str(TEAKRA/'include'), HERE/'runner.cpp',
                  TEAKRA/'b/src/libteakra.a', '-o', runner], 'runner.log')
     reference = BUILD/(stem+'.pcm')
-    reference.write_bytes(reference_bytes if args.case in ['nlsf', 'silk_math', 'fft', 'interpolate','mdct','vorbis_mdct','range_decoder'] else struct.pack('<'+'H'*len(expected), *[v & 65535 for v in expected]))
+    reference.write_bytes(reference_bytes if args.case in ['nlsf', 'silk_math', 'fft', 'interpolate','mdct','vorbis_mdct','range_decoder','silk_core'] else struct.pack('<'+'H'*len(expected), *[v & 65535 for v in expected]))
     result = subprocess.run([str(runner), str(elf), str(reference), str(BUILD/(stem+'-actual.pcm')),str(args.max_steps),str(mailbox)], capture_output=True, text=True)
     (BUILD/(stem+'-emulate.log')).write_text(result.stdout+result.stderr)
     if not result.stdout.strip():
