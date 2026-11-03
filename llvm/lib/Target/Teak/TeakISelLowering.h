@@ -104,6 +104,8 @@ private:
 
     SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerProductCall(SDValue Op, const char *Name, SelectionDAG &DAG,
+                            bool SwapOperands = false) const;
 
     SDValue LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv,
                                 bool isVarArg,

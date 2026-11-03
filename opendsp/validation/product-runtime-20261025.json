@@ -1,0 +1,100 @@
+{
+  "base_commit": "d0da4afe400",
+  "physical_hardware": false,
+  "option": "-teak-outline-products",
+  "enabled_by_default": false,
+  "compiler_sha256": "86b54c658faa0821474f61c4ac75939af55b3c09386469436c030d7cc286ba9b",
+  "active_checks": [
+    {
+      "completed": true,
+      "comparisons": 3834,
+      "errors": 0,
+      "steps": 958826,
+      "step_limit": 100000000,
+      "mailbox": 12288,
+      "case": "high_product",
+      "optimization": "-O2",
+      "diagnostics": [],
+      "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+      "physical_hardware": false
+    },
+    {
+      "completed": true,
+      "comparisons": 1716,
+      "errors": 0,
+      "steps": 256854,
+      "step_limit": 100000000,
+      "mailbox": 12288,
+      "case": "granules",
+      "optimization": "-O2",
+      "diagnostics": [],
+      "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+      "physical_hardware": false
+    },
+    {
+      "completed": true,
+      "comparisons": 3060,
+      "errors": 0,
+      "steps": 261006,
+      "step_limit": 100000000,
+      "mailbox": 12288,
+      "case": "word_product",
+      "optimization": "-O2",
+      "diagnostics": [],
+      "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+      "physical_hardware": false
+    }
+  ],
+  "default_checks": [
+    {
+      "completed": true,
+      "comparisons": 3834,
+      "errors": 0,
+      "steps": 929960,
+      "step_limit": 100000000,
+      "mailbox": 12288,
+      "case": "high_product",
+      "optimization": "-O2",
+      "diagnostics": [],
+      "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+      "physical_hardware": false,
+      "backend": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/llc-optional-products.exe",
+      "backend_flags": ""
+    },
+    {
+      "completed": true,
+      "comparisons": 3060,
+      "errors": 0,
+      "steps": 242526,
+      "step_limit": 100000000,
+      "mailbox": 12288,
+      "case": "word_product",
+      "optimization": "-O2",
+      "diagnostics": [],
+      "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+      "physical_hardware": false,
+      "backend": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/llc-optional-products.exe",
+      "backend_flags": ""
+    }
+  ],
+  "default_high_product_code_sha256": "c57b8a9aa2f65cb0475f74a073ba31763af1321d32bb28d1514aac1ae8937cdd",
+  "default_high_product_code_bytes": 57644,
+  "default_code_matches_previous": true,
+  "archive_check": {
+    "completed": true,
+    "comparisons": 3834,
+    "errors": 0,
+    "steps": 958826
+  },
+  "native_modes_checked": [
+    "interrupts disabled",
+    "interrupts enabled",
+    "fractional product mode",
+    "saturating move mode"
+  ],
+  "interrupt_injection": false,
+  "runtime_source_hashes": {
+    "multiply.ll": "5dfa8e6d3147eec3452ef44c0673600089aea6e3daa1001030a5b9196de04678",
+    "products.s": "160fbdee04f4028f0be0b147661e048db90f901e28c364fbd43757f14f400462"
+  }
+}

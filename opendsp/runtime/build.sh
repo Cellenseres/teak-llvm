@@ -8,4 +8,9 @@ mkdir -p "$OUTPUT"
     -integrated-as -c "$ROOT/opendsp/runtime/divide.ll" -o "$OUTPUT/divide.o"
 "$TOOLS/clang" --target=teak -integrated-as \
     -c "$ROOT/opendsp/runtime/indirect.s" -o "$OUTPUT/indirect.o"
-"$TOOLS/llvm-ar" rcs "$OUTPUT/libteak_rt.a" "$OUTPUT/divide.o" "$OUTPUT/indirect.o"
+"$TOOLS/clang" --target=teak -O2 -ffreestanding -ffunction-sections \
+    -integrated-as -c "$ROOT/opendsp/runtime/multiply.ll" -o "$OUTPUT/multiply.o"
+"$TOOLS/clang" --target=teak -integrated-as \
+    -c "$ROOT/opendsp/runtime/products.s" -o "$OUTPUT/products.o"
+"$TOOLS/llvm-ar" rcs "$OUTPUT/libteak_rt.a" "$OUTPUT/divide.o" "$OUTPUT/indirect.o" \
+    "$OUTPUT/multiply.o" "$OUTPUT/products.o"

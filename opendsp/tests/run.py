@@ -173,7 +173,7 @@ def multiply_pairs():
 def multiply_case():
     source = '''
 __attribute__((noinline)) u32 multiply32(u32 left, u32 right) { return left*right; }
-__attribute__((noinline)) u16 multiply16(u16 left, u16 right) { return left*right; }
+__attribute__((noinline)) u16 products(u16 left, u16 right) { return left*right; }
 u16 multiply40(const u16 *, const u16 *, u16);
 u16 multiply_signed40(const u16 *, const u16 *, u16);
 '''
@@ -181,7 +181,7 @@ u16 multiply_signed40(const u16 *, const u16 *, u16);
     for left, right in multiply_pairs():
         index = len(inputs)
         inputs.extend([(value >> shift) & 65535 for value in [left, right] for shift in [0, 16, 32]])
-        body.append(f'out[n++] = multiply16(multiply_inputs[{index}], multiply_inputs[{index+3}]);')
+        body.append(f'out[n++] = products(multiply_inputs[{index}], multiply_inputs[{index+3}]);')
         expected.append((left*right) & 65535)
         body.append(f'product = multiply32(((u32)multiply_inputs[{index+1}] << 16) | multiply_inputs[{index}], '
                     f'((u32)multiply_inputs[{index+4}] << 16) | multiply_inputs[{index+3}]);')
@@ -511,6 +511,43 @@ static const mdct_lookup mdct_state = {
     for index in range(length+4):
         body.extend([f'sample=(u32)mdct_output[{index}];','out[n++]=sample;','out[n++]=sample >> 16;'])
     return source,body,[0]*(2*(length+4))
+
+
+def word_product_case():
+    values=[0,1,65535,65536,(1<<32)-1,1<<32,(1<<39)-1,1<<39,(1<<40)-1]
+    state=0x123456789a
+    for _ in range(11):
+        state=(state*6364136223846793005+1442695040888963407)&((1<<40)-1)
+        values.append(state)
+    factors=[-32768,-32767,-16384,-129,-1,0,1,127,128,16384,32767]
+    source=''
+    for name in ['word_product40','word_product_left40','word_product_direct40']:
+        source+=f'extern u16 {name}(const u16 *,s16,u16);\n'
+    for name in ['state_word_product40','state_low_product40','state_high_product40']:
+        source+=f'extern u16 {name}(const u16 *,s16,u16,u16 *,u16);\n'
+    source+='u16 product_modes[4];\n'
+    source+='u16 word_product_inputs[]={'+','.join(str((value>>shift)&65535) for value in values for shift in [0,16,32])+'};\n'
+    source+='volatile s16 word_product_factors[]={'+','.join(map(str,factors))+'};\n'
+    body,expected=[],[]
+    for index,value in enumerate(values):
+        for factor_index,factor in enumerate(factors):
+            for shift in [0,16,32]:
+                for name in ['word_product40','word_product_left40','word_product_direct40']:
+                    body.append(f'out[n++]={name}(word_product_inputs+{index*3},word_product_factors[{factor_index}],{shift});')
+                    expected.append(((value*factor)&((1<<40)-1))>>shift&65535)
+    for index in [0,4,6,7,8]:
+        for factor_index in [0,4,6,10]:
+            for mode in [0,128]:
+                for shift in [0,16,32]:
+                    for name in ['state_word_product40','state_low_product40','state_high_product40']:
+                        body.extend([f'out[n++]={name}(word_product_inputs+{index*3},word_product_factors[{factor_index}],{shift},product_modes,{mode});',
+                                     'out[n++]=product_modes[0]==product_modes[2];',
+                                     'out[n++]=product_modes[1]==product_modes[3];'])
+                        value=values[index]*factors[factor_index]
+                        if name=='state_high_product40':
+                            value=(values[index]*(factors[factor_index]&((1<<40)-1)))>>40
+                        expected.extend([((value&((1<<40)-1))>>shift)&65535,1,1])
+    return source,body,expected
 
 
 def silk_core_case():
@@ -1107,7 +1144,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', default='-O2')
     parser.add_argument('--label')
-    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct', 'division', 'range_decoder', 'byte_order', 'dynamic_stack', 'size_types', 'granules', 'varargs', 'silk_core'], default='comparisons')
+    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct', 'division', 'range_decoder', 'byte_order', 'dynamic_stack', 'size_types', 'granules', 'varargs', 'silk_core', 'word_product'], default='comparisons')
     parser.add_argument('--max-steps',type=int,default=3000000)
     parser.add_argument('--vorbis-size',type=int,choices=[64,128,256,512,1024,2048,4096,8192],default=64)
     parser.add_argument('--vorbis-vector',type=int,choices=range(5),default=0)
@@ -1122,7 +1159,9 @@ def main():
     factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'fft': fft_case, 'pointers': pointers_case, 'fft_math': fft_math_case, 'table_words': table_words_case, 'calls': calls_case, 'interpolate': interpolate_case, 'word_memory': word_memory_case, 'high_product': high_product_case}
     if args.max_steps < 1:
         parser.error('Step limit must be positive')
-    if args.case == 'silk_core':
+    if args.case == 'word_product':
+        functions,body,expected=word_product_case()
+    elif args.case == 'silk_core':
         functions,body,expected=silk_core_case()
     elif args.case == 'varargs':
         functions,body,expected=varargs_case()
@@ -1188,15 +1227,19 @@ def main():
         command([CC, *flags, '-c', path, '-o', obj], path.stem+'.log')
         objects.append(obj)
     command([CC, *flags, '-S', source, '-o', BUILD / (stem+'.s')], stem+'-asm.log')
-    paths=[HERE.parent/'runtime/divide.ll']
+    paths=[HERE.parent/'runtime/divide.ll',HERE.parent/'runtime/multiply.ll',HERE.parent/'runtime/products.s']
+    if args.case=='word_product':
+        paths.append(HERE/'product_state.s')
     if args.case=='division':
         paths.append(HERE/'division40.ll')
     for path in paths:
         obj=BUILD/(path.stem+'.o')
         command([CC,'--target=teak','-O2','-integrated-as','-ffunction-sections','-c',path,'-o',obj],path.stem+'.log')
         objects.append(obj)
-    if args.case in ['clz', 'multiply', 'table_words', 'calls', 'high_product']:
-        ir_source = HERE/('high_product40.ll' if args.case == 'high_product' else 'calls40.ll' if args.case == 'calls' else 'pointers.ll' if args.case == 'table_words' else 'clz40.ll' if args.case == 'clz' else 'multiply40.ll')
+    ir_sources={'high_product':'high_product40.ll','calls':'calls40.ll','table_words':'pointers.ll',
+                'clz':'clz40.ll','multiply':'multiply40.ll','word_product':'word_product40.ll'}
+    if args.case in ir_sources:
+        ir_source = HERE/ir_sources[args.case]
         obj = BUILD/(ir_source.stem+'.o')
         command([CC, '--target=teak', '-O2', '-integrated-as', '-c', ir_source, '-o', obj], ir_source.stem+'.log')
         objects.append(obj)
@@ -1255,6 +1298,8 @@ def main():
         evidence.update(step_limit=args.max_steps,mailbox=mailbox)
         evidence.update(case=args.case, optimization=args.opt, diagnostics=result.stderr.splitlines(),
                         compiler=CC, physical_hardware=False)
+        evidence.update(backend=os.environ.get('TEAK_LLC'),
+                        backend_flags=os.environ.get('TEAK_LLC_FLAGS',''))
         (BUILD/(args.label+'-'+stem+'.json')).write_text(json.dumps(evidence, indent=2)+'\n')
     print(result.stdout+result.stderr, end='')
     raise SystemExit(result.returncode)

@@ -339,3 +339,16 @@ its object shrinks from 247,964 to 161,456 bytes. SILK synthesis increases
 slightly from 10,359,579 to 10,395,563 steps, so this is not a uniform speedup.
 These figures measure emulator work and object size, not physical deadlines
 or complete firmware fit. See `opendsp/validation/wide-digits-20261025.json`.
+
+`-mllvm -teak-outline-products` enables shared wide-product functions. It is
+disabled by default. Link the rebuilt runtime archive when using the option.
+The native functions preserve MOD0, MOD3 and their saved registers, masking
+interrupts while product registers are live. The standard calling environment
+still applies to compiled code around those functions.
+
+The boundary group passes 3,060 words, including 360 calls with both interrupt
+states and altered product modes. Values and restored modes match. Interrupt
+injection has not been tested. Archive linking passes another 3,834 words.
+The default high-product code remains byte-identical to the preceding compiler.
+See `opendsp/validation/product-runtime-20261025.json`. This option remains an
+experiment; it does not yet make the full Opus decoder fit program RAM.

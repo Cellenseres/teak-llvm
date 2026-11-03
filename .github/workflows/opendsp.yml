@@ -62,6 +62,7 @@ jobs:
           python3 opendsp/tests/run.py --case nlsf --label ci
           python3 opendsp/tests/run.py --case clz --label ci
           python3 opendsp/tests/run.py --case multiply --label ci
+          python3 opendsp/tests/run.py --case word_product --label ci
           python3 opendsp/tests/run.py --case high_product --label ci
           python3 opendsp/tests/run.py --case silk_math --label ci
           python3 opendsp/tests/run.py --case stack --label ci

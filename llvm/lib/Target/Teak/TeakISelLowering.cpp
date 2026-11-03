@@ -33,11 +33,15 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Signals.h"
 
 using namespace llvm;
+
+static cl::opt<bool> OutlineProducts("teak-outline-products", cl::init(false),
+                                    cl::desc("Use shared multiplication helpers"));
 
 const char *TeakTargetLowering::getTargetNodeName(unsigned Opcode) const {
   switch (Opcode) {
@@ -543,6 +547,26 @@ SDValue TeakTargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const
 						DAG.getConstant(SPCC, dl, MVT::i40), CompareFlag);
 }
 
+SDValue TeakTargetLowering::LowerProductCall(
+    SDValue Op, const char *Name, SelectionDAG &DAG, bool SwapOperands) const {
+  SDLoc Location(Op);
+  Type *ValueType = IntegerType::get(*DAG.getContext(), 40);
+  ArgListTy Arguments;
+  for (unsigned Index = 0; Index < 2; ++Index) {
+    SDValue Value = Op.getOperand(SwapOperands ? 1 - Index : Index);
+    ArgListEntry Argument;
+    Argument.Node = Value;
+    Argument.Ty = ValueType;
+    Arguments.push_back(Argument);
+  }
+  CallLoweringInfo Call(DAG);
+  Call.setDebugLoc(Location).setChain(DAG.getEntryNode())
+      .setLibCallee(CallingConv::C, ValueType,
+          DAG.getExternalSymbol(Name, MVT::i16), std::move(Arguments))
+      .setIsPostTypeLegalization(true);
+  return LowerCallTo(Call).first;
+}
+
 SDValue TeakTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
 {
 	// dbgs() << "LowerOperation\n";
@@ -803,6 +827,9 @@ SDValue TeakTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
 		case ISD::MULHU:
 		case ISD::MULHS:
 		{
+			if (OutlineProducts)
+				return LowerProductCall(Op, Op.getOpcode() == ISD::MULHU ?
+					"__teak_umulh40" : "__teak_smulh40", DAG);
 			SDLoc Location(Op);
 			SDValue LeftOperand = Op.getOperand(0);
 			SDValue RightOperand = Op.getOperand(1);
@@ -867,6 +894,12 @@ SDValue TeakTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
 				};
 				if (LeftIsSignedWord && RightIsSignedWord)
 					return NativeProduct(LeftOperand, RightOperand);
+				if (OutlineProducts) {
+					if (LeftIsSignedWord || RightIsSignedWord)
+						return LowerProductCall(Op, "__teak_mulword40", DAG, LeftIsSignedWord);
+					return LowerProductCall(Op, "__teak_mul40", DAG);
+				}
+
 				APInt UpperBits = APInt::getHighBitsSet(40, 24);
 				if ((LeftIsSignedWord && DAG.MaskedValueIsZero(RightOperand, UpperBits)) ||
 					(RightIsSignedWord && DAG.MaskedValueIsZero(LeftOperand, UpperBits))) {
