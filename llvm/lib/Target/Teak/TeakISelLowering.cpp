@@ -121,6 +121,10 @@ TeakTargetLowering::TeakTargetLowering(const TeakTargetMachine &TeakTM)
 		setOperationAction(ISD::SDIVREM, ValueType, Expand);
 	}
 	setOperationAction(ISD::LOAD, MVT::i64, Custom);
+	setOperationAction(ISD::LOAD, MVT::i32, Custom);
+	setOperationAction(ISD::STORE, MVT::i32, Custom);
+	setOperationAction(ISD::LOAD, MVT::i16, Custom);
+	setOperationAction(ISD::LOAD, MVT::i40, Custom);
 	setOperationAction(ISD::STORE, MVT::i64, Custom);
 	setOperationAction(ISD::CTLZ, MVT::i16, Custom);
 	setOperationAction(ISD::CTLZ, MVT::i40, Custom);
@@ -303,6 +307,8 @@ bool TeakTargetLowering::getPostIndexedAddressParts(SDNode* N, SDNode* Op,
 	SDLoc DL(N);
 	const LoadSDNode* ld = dyn_cast<LoadSDNode>(N);
 	const StoreSDNode* st = dyn_cast<StoreSDNode>(N);
+	if ((ld && ld->getAddressSpace() == 1) || (st && st->getAddressSpace() == 1))
+		return false;
 	if (!(ld && ld->getMemoryVT() == MVT::i16) && !(st && st->getMemoryVT() == MVT::i16))
 		return false;
 	if ((ld && ld->getValueType(0) != MVT::i16) ||
@@ -665,6 +671,44 @@ SDValue TeakTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
 		}
 		case ISD::LOAD: {
 			LoadSDNode *Load = cast<LoadSDNode>(Op);
+			if (Load->getAddressSpace() == 1) {
+				if (Load->isAtomic() || Load->isIndexed())
+					report_fatal_error("Unsupported program memory load");
+				unsigned Width = Load->getMemoryVT().getSizeInBits();
+				if (Width != 8 && Width != 16 && Width != 32)
+					report_fatal_error("Unsupported program memory width");
+				SDLoc Location(Op);
+				Type *AddressType = Type::getIntNTy(*DAG.getContext(), 40);
+				Type *ResultType = Type::getIntNTy(*DAG.getContext(), Width == 32 ? 40 : 16);
+				ArgListTy Arguments;
+				ArgListEntry Address;
+				Address.Node = DAG.getZExtOrTrunc(Load->getBasePtr(), Location, MVT::i40);
+				Address.Ty = AddressType;
+				Arguments.push_back(Address);
+				const char *Name = Width == 32 ? "__teak_program_read32" : "__teak_program_read16";
+				CallLoweringInfo Call(DAG);
+				Call.setDebugLoc(Location).setChain(Load->getChain())
+					.setLibCallee(CallingConv::C, ResultType,
+						DAG.getExternalSymbol(Name, MVT::i16), std::move(Arguments))
+					.setIsPostTypeLegalization(true);
+				auto Result = LowerCallTo(Call);
+				SDValue Value = Result.first;
+				bool Signed = Load->getExtensionType() == ISD::SEXTLOAD;
+				if (Width == 8) {
+					Value = DAG.getNode(ISD::AND, Location, MVT::i16, Value,
+						DAG.getConstant(255, Location, MVT::i16));
+					if (Signed)
+						Value = DAG.getNode(ISD::SIGN_EXTEND_INREG, Location, MVT::i16,
+							Value, DAG.getValueType(MVT::i8));
+				}
+				if (Value.getValueType() != Op.getValueType())
+					Value = DAG.getNode(Signed ? ISD::SIGN_EXTEND : ISD::ZERO_EXTEND,
+						Location, Op.getValueType(), Value);
+				if (Width == 32 && Load->getExtensionType() == ISD::ZEXTLOAD)
+					Value = DAG.getNode(ISD::AND, Location, MVT::i40, Value,
+						DAG.getConstant(UINT64_C(0xffffffff), Location, MVT::i40));
+				return DAG.getMergeValues({Value, Result.second}, Location);
+			}
 			if (Load->getMemoryVT() == MVT::i8) {
 				assert(!Load->isAtomic() && !Load->isIndexed());
 				SDLoc Location(Op);
@@ -682,6 +726,8 @@ SDValue TeakTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
 						Location, MVT::i40, Value);
 				return DAG.getMergeValues({Value, Word.getValue(1)}, Location);
 			}
+			if (Load->getMemoryVT() != MVT::i32)
+				return SDValue();
 			if (Load->getAlignment() >= 4 && Load->getExtensionType() != ISD::ZEXTLOAD)
 				return SDValue();
 			SDLoc Location(Op);
@@ -1095,7 +1141,6 @@ SDValue TeakTargetLowering::LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) co
 	GlobalAddressSDNode *GlobalAddr = cast<GlobalAddressSDNode>(Op.getNode());
 	int64_t Offset = cast<GlobalAddressSDNode>(Op)->getOffset();
 	if (GlobalAddr->getGlobal()->getAddressSpace() == 1) {
-		assert(Offset == 0 && "Unexpected program symbol offset");
 		SDLoc Location(Op);
 		Constant *Address = ConstantExpr::getPtrToInt(
 			const_cast<GlobalValue *>(GlobalAddr->getGlobal()),
@@ -1105,11 +1150,13 @@ SDValue TeakTargetLowering::LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) co
 		SDValue High = DAG.getLoad(MVT::i16, Location, DAG.getEntryNode(), Pool, PointerInfo, 4);
 		SDValue Low = DAG.getLoad(MVT::i16, Location, High.getValue(1),
 			DAG.getMemBasePlusOffset(Pool, 1, Location), PointerInfo.getWithOffset(2), 2);
-		return DAG.getNode(ISD::OR, Location, MVT::i40,
+		SDValue Value = DAG.getNode(ISD::OR, Location, MVT::i40,
 			DAG.getNode(ISD::SHL, Location, MVT::i40,
 				DAG.getNode(ISD::ZERO_EXTEND, Location, MVT::i40, High),
 				DAG.getConstant(16, Location, MVT::i40)),
 			DAG.getNode(ISD::ZERO_EXTEND, Location, MVT::i40, Low));
+		return Offset ? DAG.getNode(ISD::ADD, Location, MVT::i40, Value,
+			DAG.getConstant(Offset, Location, MVT::i40)) : Value;
 	}
 	if(VT == MVT::i16)
 		return DAG.getNode(TeakISD::WRAPPER, SDLoc(Op), MVT::i16, DAG.getTargetGlobalAddress(GlobalAddr->getGlobal(), Op, MVT::i16, Offset));
@@ -1450,10 +1497,35 @@ TeakTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
   return DAG.getNode(TeakISD::RET_FLAG, dl, MVT::Other, RetOps);
 }
 
+void TeakTargetLowering::LowerOperationWrapper(SDNode *N,
+    SmallVectorImpl<SDValue> &Results, SelectionDAG &DAG) const {
+	if (auto *Load = dyn_cast<LoadSDNode>(N)) {
+		if (Load->getAddressSpace() == 1) {
+			SDValue Value = LowerOperation(SDValue(N, 0), DAG);
+			Results.append({Value, Value.getValue(1)});
+			return;
+		}
+	}
+	if (auto *Store = dyn_cast<StoreSDNode>(N))
+		if (Store->getAddressSpace() == 1)
+			report_fatal_error("Program memory stores are unsupported");
+	TargetLowering::LowerOperationWrapper(N, Results, DAG);
+}
+
 void TeakTargetLowering::ReplaceNodeResults(SDNode *N,
 											SmallVectorImpl<SDValue> &Results,
 											SelectionDAG &DAG) const
 {
+	if (auto *Store = dyn_cast<StoreSDNode>(N)) {
+		if (Store->getAddressSpace() == 1)
+			report_fatal_error("Program memory stores are unsupported");
+		if (Store->getValue().getValueType() == MVT::i32)
+			return;
+	}
+	if (auto *Load = dyn_cast<LoadSDNode>(N)) {
+		if (Load->getValueType(0) == MVT::i32)
+			return;
+	}
 	if (N->getOpcode() == ISD::LOAD && N->getValueType(0) == MVT::i64) {
 		LoadSDNode *Load = cast<LoadSDNode>(N);
 		if (Load->getMemoryVT() != MVT::i64 || Load->isAtomic() || Load->isIndexed())

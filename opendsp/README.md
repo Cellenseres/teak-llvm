@@ -352,3 +352,36 @@ injection has not been tested. Archive linking passes another 3,834 words.
 The default high-product code remains byte-identical to the preceding compiler.
 See `opendsp/validation/product-runtime-20261025.json`. This option remains an
 experiment; it does not yet make the full Opus decoder fit program RAM.
+
+## Program memory reads
+
+Address-space 1 loads now use full program addresses. The runtime provides
+`__teak_program_read16` and `__teak_program_read32`; padded eight-bit loads
+use the word helper with the required mask or sign extension. MOVP reads
+through A0, independently of PCMHI. The opcodes 0x0d40 and 0x0d41 target
+R0 and R1. No interrupt mask or product register is needed.
+
+Place constant tables in a program section and link the rebuilt runtime:
+
+```c
+typedef const long __attribute__((address_space(1))) program_value;
+static program_value coefficients[]
+    __attribute__((section(".teak_program_data"))) = {0x12345678L};
+```
+
+Include `.teak_program_data` in a program-memory PT_LOAD segment, before
+switching the location counter to X data. Program addresses are word-based,
+as function addresses are. Mutable program globals and atomic accesses are
+outside this interface; program-memory stores are rejected.
+
+`python3 opendsp/tests/program_memory.py` checks constants, variable indices,
+structure fields, signed and unsigned conversions, and addresses crossing
+64 Kiwords. All four PCMHI settings produce the same 138 expected words;
+the register is also retained. Runtime archive linking and rejection of a
+program-memory store are checked. Set `TEAK_AR` when llvm-ar is not on PATH.
+These are emulator checks with locally rebuilt components, not hardware
+timing or a clean toolchain build.
+
+The recorded run passes 552 program-table words and the existing 48 groups,
+48,007 words. The full banked Opus decoder object is byte-identical with
+this backend. See `opendsp/validation/program-memory-20261026.json`.

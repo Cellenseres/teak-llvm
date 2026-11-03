@@ -12,5 +12,7 @@ mkdir -p "$OUTPUT"
     -integrated-as -c "$ROOT/opendsp/runtime/multiply.ll" -o "$OUTPUT/multiply.o"
 "$TOOLS/clang" --target=teak -integrated-as \
     -c "$ROOT/opendsp/runtime/products.s" -o "$OUTPUT/products.o"
+"$TOOLS/clang" --target=teak -integrated-as \
+    -c "$ROOT/opendsp/runtime/program.s" -o "$OUTPUT/program.o"
 "$TOOLS/llvm-ar" rcs "$OUTPUT/libteak_rt.a" "$OUTPUT/divide.o" "$OUTPUT/indirect.o" \
-    "$OUTPUT/multiply.o" "$OUTPUT/products.o"
+    "$OUTPUT/multiply.o" "$OUTPUT/products.o" "$OUTPUT/program.o"
