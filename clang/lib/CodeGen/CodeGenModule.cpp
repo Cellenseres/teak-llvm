@@ -4908,6 +4908,12 @@ CodeGenModule::GetConstantArrayFromStringLiteral(const StringLiteral *E) {
     // Resize the string to the right size, which is indicated by its type.
     const ConstantArrayType *CAT = Context.getAsConstantArrayType(E->getType());
     Str.resize(CAT->getSize().getZExtValue());
+    if (getTriple().getArch() == llvm::Triple::teak) {
+      SmallVector<uint16_t, 64> Elements;
+      for (unsigned char Value : Str)
+        Elements.push_back(Value);
+      return llvm::ConstantDataArray::get(VMContext, Elements);
+    }
     return llvm::ConstantDataArray::getString(VMContext, Str, false);
   }
 

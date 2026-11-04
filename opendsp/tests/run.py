@@ -346,6 +346,30 @@ __attribute__((noinline)) void capture_bytes(const volatile u8 *values,u16 count
     return source, body, expected
 
 
+def byte_strings_case():
+    source, _, _ = byte_constants_case()
+    strings = [
+        ('empty', '', [0]),
+        ('one', 'A', [65, 0]),
+        ('four', 'Ogg', list(b'Ogg\0')),
+        ('five', 'Opus', list(b'Opus\0')),
+        ('binary', r'\200\377', [128, 255, 0]),
+        ('embedded', r'Op\0us', [79, 112, 0, 117, 115, 0]),
+        ('padded', 'ogg', list(b'ogg') + [0] * 17),
+    ]
+    body, expected = [], []
+    for name, text, values in strings:
+        source += f'const u8 global_text_{name}[{len(values)}]="{text}";\n'
+        body.append(f'u8 local_text_{name}[{len(values)}]="{text}";')
+        for storage in ['global', 'local']:
+            body += [f'capture_bytes({storage}_text_{name},{len(values)},out+n);', f'n+={len(values)};']
+            expected.extend(values)
+        literal_values = values[:4] if name == 'padded' else values
+        body += [f'capture_bytes((const u8 *)"{text}",{len(literal_values)},out+n);', f'n+={len(literal_values)};']
+        expected.extend(literal_values)
+    return source, body, expected
+
+
 def byte_memory_case():
     values=[(index*7919+0x9abcdeff)&0xffffffff for index in range(256)]
     source='''
@@ -1194,7 +1218,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', default='-O2')
     parser.add_argument('--label')
-    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct', 'division', 'range_decoder', 'byte_order', 'dynamic_stack', 'size_types', 'granules', 'varargs', 'silk_core', 'word_product', 'byte_constants'], default='comparisons')
+    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct', 'division', 'range_decoder', 'byte_order', 'dynamic_stack', 'size_types', 'granules', 'varargs', 'silk_core', 'word_product', 'byte_constants', 'byte_strings'], default='comparisons')
     parser.add_argument('--max-steps',type=int,default=3000000)
     parser.add_argument('--vorbis-size',type=int,choices=[64,128,256,512,1024,2048,4096,8192],default=64)
     parser.add_argument('--vorbis-vector',type=int,choices=range(5),default=0)
@@ -1206,7 +1230,7 @@ def main():
     parser.add_argument('--mdct-frames',type=int,choices=[1,2],default=2)
     args = parser.parse_args()
     BUILD.mkdir(parents=True, exist_ok=True)
-    factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'fft': fft_case, 'pointers': pointers_case, 'fft_math': fft_math_case, 'table_words': table_words_case, 'calls': calls_case, 'interpolate': interpolate_case, 'word_memory': word_memory_case, 'high_product': high_product_case, 'byte_constants': byte_constants_case}
+    factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'fft': fft_case, 'pointers': pointers_case, 'fft_math': fft_math_case, 'table_words': table_words_case, 'calls': calls_case, 'interpolate': interpolate_case, 'word_memory': word_memory_case, 'high_product': high_product_case, 'byte_constants': byte_constants_case, 'byte_strings': byte_strings_case}
     if args.max_steps < 1:
         parser.error('Step limit must be positive')
     if args.case == 'word_product':

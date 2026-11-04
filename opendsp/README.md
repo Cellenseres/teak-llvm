@@ -396,7 +396,12 @@ This fixes the silence packet used during an Opus Hybrid-to-SILK transition.
 
 The native `byte_constants` test covers local and global arrays, signed
 payloads, nested arrays, zero initialization and trailing zero fillers.
-It checks 136 words at both `-O2` and `-Oz`. String-literal initialization
-uses another frontend path; automatic string arrays can still select
-unsupported odd-sized memory operations. See
+It checks 136 words at both `-O2` and `-Oz`. See
 `opendsp/validation/byte-constants-20261026.json`.
+
+String constants now use the same word storage. Previously, initializing
+an automatic string array could copy only half its physical storage or
+leave characters zeroed. `byte_strings` checks 107 words at both `-O2`
+and `-Oz`, covering empty strings, odd lengths, embedded zeroes, high
+bytes, padding and direct literals. The byte-memory and aggregate tests
+also pass. See `opendsp/validation/byte-strings-20261026.json`.

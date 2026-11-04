@@ -1,0 +1,104 @@
+{
+  "base_commit": "db9cdd2b4dd",
+  "physical_hardware": false,
+  "clean_build": false,
+  "compiler_kind": "Locally rebuilt components",
+  "negative_control": {
+    "completed": true,
+    "comparisons": 107,
+    "errors": 5,
+    "steps": 2607,
+    "step_limit": 3000000,
+    "mailbox": 12288,
+    "case": "byte_strings",
+    "optimization": "-O2",
+    "diagnostics": [
+      "word=5 got=0000 expected=0041",
+      "word=13 got=0000 expected=004f",
+      "word=14 got=0000 expected=0067",
+      "word=15 got=0000 expected=0067",
+      "word=55 got=0000 expected=0073"
+    ],
+    "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+    "physical_hardware": false,
+    "backend": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/llc-program-loads.exe",
+    "backend_flags": ""
+  },
+  "cases": [
+    {
+      "completed": true,
+      "comparisons": 107,
+      "errors": 0,
+      "steps": 2398,
+      "step_limit": 3000000,
+      "mailbox": 12288,
+      "case": "byte_strings",
+      "optimization": "-O2",
+      "diagnostics": [],
+      "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+      "physical_hardware": false,
+      "backend": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/llc-program-loads.exe",
+      "backend_flags": ""
+    },
+    {
+      "completed": true,
+      "comparisons": 107,
+      "errors": 0,
+      "steps": 2009,
+      "step_limit": 3000000,
+      "mailbox": 12288,
+      "case": "byte_strings",
+      "optimization": "-Oz",
+      "diagnostics": [],
+      "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+      "physical_hardware": false,
+      "backend": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/llc-program-loads.exe",
+      "backend_flags": ""
+    },
+    {
+      "completed": true,
+      "comparisons": 136,
+      "errors": 0,
+      "steps": 3425,
+      "step_limit": 3000000,
+      "mailbox": 12288,
+      "case": "byte_constants",
+      "optimization": "-O2",
+      "diagnostics": [],
+      "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+      "physical_hardware": false,
+      "backend": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/llc-program-loads.exe",
+      "backend_flags": ""
+    },
+    {
+      "completed": true,
+      "comparisons": 1828,
+      "errors": 0,
+      "steps": 24098,
+      "step_limit": 3000000,
+      "mailbox": 12288,
+      "case": "byte_memory",
+      "optimization": "-O2",
+      "diagnostics": [],
+      "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+      "physical_hardware": false,
+      "backend": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/llc-program-loads.exe",
+      "backend_flags": ""
+    }
+  ],
+  "comparisons": 2178,
+  "x86_unchanged": {
+    "passed": true,
+    "ir_sha256": "b0915d386394cc3aa8897f6c7b9d5cdb52967925051c2d74d74b4de19887f617"
+  },
+  "sources": {
+    "clang/lib/CodeGen/CodeGenModule.cpp": "9c1e181fe586d8136157866698f1de2c9a58ab21b72359d813974658ac2fdd95",
+    "opendsp/tests/run.py": "9f9cc63f31d51945e2c1a00a6e8474f4d0d3ba1e4fb555042db04476316c2f5d"
+  },
+  "toolchain": {
+    "cc1-byte-arrays.exe": "b9776d465bffdcb7124771be0c1df627bc835a49f8d3ff9904be6389f8ac6633",
+    "cc1-word-strings.exe": "0ca871acddbc22d56a57e20979093e8ed19f1f9d5da7da62a963200c52868db6",
+    "llc-program-loads.exe": "ada3f12177a6ea9c5c942e23e08ff8ae9d5864b60cdec5695111c25e282b090c"
+  },
+  "passed": true
+}
