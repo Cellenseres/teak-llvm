@@ -385,3 +385,18 @@ timing or a clean toolchain build.
 The recorded run passes 552 program-table words and the existing 48 groups,
 48,007 words. The full banked Opus decoder object is byte-identical with
 this backend. See `opendsp/validation/program-memory-20261026.json`.
+
+## Byte-array constants
+
+Teak stores each eight-bit array element in a separate 16-bit word. Clang
+now emits aggregate initializers with that storage width. Previously,
+optimizing `{255, 255}` into one 32-bit store produced `0xff00ff00`.
+Byte loads then read two zeroes. The corrected store is `0x00ff00ff`.
+This fixes the silence packet used during an Opus Hybrid-to-SILK transition.
+
+The native `byte_constants` test covers local and global arrays, signed
+payloads, nested arrays, zero initialization and trailing zero fillers.
+It checks 136 words at both `-O2` and `-Oz`. String-literal initialization
+uses another frontend path; automatic string arrays can still select
+unsupported odd-sized memory operations. See
+`opendsp/validation/byte-constants-20261026.json`.

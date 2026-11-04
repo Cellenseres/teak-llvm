@@ -918,6 +918,17 @@ EmitArrayConstant(CodeGenModule &CGM, llvm::ArrayType *DesiredType,
                   llvm::Type *CommonElementType, unsigned ArrayBound,
                   SmallVectorImpl<llvm::Constant *> &Elements,
                   llvm::Constant *Filler) {
+  if (CGM.getTriple().getArch() == llvm::Triple::teak &&
+      DesiredType->getElementType()->isIntegerTy(8)) {
+    llvm::Type *WordType = llvm::Type::getInt16Ty(CGM.getLLVMContext());
+    for (llvm::Constant *&Element : Elements)
+      Element = llvm::ConstantExpr::getZExt(Element, WordType);
+    if (Filler)
+      Filler = llvm::ConstantExpr::getZExt(Filler, WordType);
+    if (CommonElementType)
+      CommonElementType = WordType;
+    DesiredType = llvm::ArrayType::get(WordType, ArrayBound);
+  }
   // Figure out how long the initial prefix of non-zero elements is.
   unsigned NonzeroLength = ArrayBound;
   if (Elements.size() < NonzeroLength && Filler->isNullValue())

@@ -296,6 +296,56 @@ __attribute__((noinline)) u32 invoke_callback(callback_function function,u32 fir
     return source,body,expected
 
 
+def byte_constants_case():
+    arrays = [
+        ('silence', [255, 255]),
+        ('mixed', [0, 127, 128, 255, 1]),
+        ('padded', [255, 128] + [0] * 14),
+        ('prefix', list(range(1, 10)) + [0] * 12),
+        ('zero', [0] * 16),
+    ]
+    source = '''
+typedef unsigned char u8;
+void *memcpy(void *destination,const void *source,__SIZE_TYPE__ bytes) {
+    u16 *target=destination;
+    const u16 *origin=source;
+    __SIZE_TYPE__ index;
+    for(index=0;index<bytes/2;++index) target[index]=origin[index];
+    return destination;
+}
+void *memset(void *destination,int value,__SIZE_TYPE__ bytes) {
+    u16 *target=destination;
+    __SIZE_TYPE__ index;
+    for(index=0;index<bytes/2;++index) target[index]=(value&255)*257;
+    return destination;
+}
+__attribute__((noinline)) void capture_bytes(const volatile u8 *values,u16 count,u16 *output) {
+    u16 index;
+    for(index=0;index<count;++index) output[index]=values[index];
+}
+'''
+    body, expected = [], []
+    for name, values in arrays:
+        initial = ','.join(map(str, values))
+        if name in ['padded', 'prefix']:
+            initial = ','.join(map(str, values[:2 if name == 'padded' else 9]))
+        initial = initial or '0'
+        source += f'const u8 global_{name}[{len(values)}]={{ {initial} }};\n'
+        body.append(f'u8 local_{name}[{len(values)}]={{ {initial} }};')
+        for storage in ['global', 'local']:
+            body += [f'capture_bytes({storage}_{name},{len(values)},out+n);', f'n+={len(values)};']
+            expected.extend(values)
+    source += 'const u8 global_nested[2][3]={{255,128,1},{127,0,254}};\n'
+    body += ['u8 local_nested[2][3]={{255,128,1},{127,0,254}};',
+             'signed char signed_values[]={-128,-1,0,127};']
+    for expression, values in [('global_nested[0]', [255,128,1]), ('global_nested[1]', [127,0,254]),
+                               ('local_nested[0]', [255,128,1]), ('local_nested[1]', [127,0,254]),
+                               ('(const u8 *)signed_values', [128,255,0,127])]:
+        body += [f'capture_bytes({expression},{len(values)},out+n);', f'n+={len(values)};']
+        expected.extend(values)
+    return source, body, expected
+
+
 def byte_memory_case():
     values=[(index*7919+0x9abcdeff)&0xffffffff for index in range(256)]
     source='''
@@ -1144,7 +1194,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', default='-O2')
     parser.add_argument('--label')
-    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct', 'division', 'range_decoder', 'byte_order', 'dynamic_stack', 'size_types', 'granules', 'varargs', 'silk_core', 'word_product'], default='comparisons')
+    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct', 'division', 'range_decoder', 'byte_order', 'dynamic_stack', 'size_types', 'granules', 'varargs', 'silk_core', 'word_product', 'byte_constants'], default='comparisons')
     parser.add_argument('--max-steps',type=int,default=3000000)
     parser.add_argument('--vorbis-size',type=int,choices=[64,128,256,512,1024,2048,4096,8192],default=64)
     parser.add_argument('--vorbis-vector',type=int,choices=range(5),default=0)
@@ -1156,7 +1206,7 @@ def main():
     parser.add_argument('--mdct-frames',type=int,choices=[1,2],default=2)
     args = parser.parse_args()
     BUILD.mkdir(parents=True, exist_ok=True)
-    factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'fft': fft_case, 'pointers': pointers_case, 'fft_math': fft_math_case, 'table_words': table_words_case, 'calls': calls_case, 'interpolate': interpolate_case, 'word_memory': word_memory_case, 'high_product': high_product_case}
+    factories = {'nlsf': nlsf_case, 'sort': sort_case, 'clz': clz_case, 'silk_math': silk_math_case, 'multiply': multiply_case, 'stack': stack_case, 'bulk': bulk_case, 'fft': fft_case, 'pointers': pointers_case, 'fft_math': fft_math_case, 'table_words': table_words_case, 'calls': calls_case, 'interpolate': interpolate_case, 'word_memory': word_memory_case, 'high_product': high_product_case, 'byte_constants': byte_constants_case}
     if args.max_steps < 1:
         parser.error('Step limit must be positive')
     if args.case == 'word_product':
