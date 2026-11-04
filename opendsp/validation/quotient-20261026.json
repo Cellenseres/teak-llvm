@@ -1,0 +1,513 @@
+{
+  "passed": true,
+  "physical_hardware": false,
+  "hardware_deadlines": false,
+  "clean_build": false,
+  "compiler_kind": "Locally rebuilt components",
+  "base_commit": "d83d7e59cfa",
+  "sources": {
+    "opendsp/runtime/divide.ll": "bcbdfa25b7eae33558d323a1ff3aee33ac2763c9acf733f7045cb35289c192c8",
+    "opendsp/runtime/quotient.s": "cf53d911c4c3ad43f0c16930565c82c73913b3839337716c2f3fbb237352763c",
+    "opendsp/runtime/build.sh": "4a8507caf48ebe1bdfb8bcca83e2e3e4e86d4f34ffe8e6e892dcf5facfc7b1ca",
+    "opendsp/tests/run.py": "c4fe2cc52fb60d54799ebe704c3a3e741379715ea9d7ce25ea09ecf30fc796b2",
+    "opendsp/tests/division40.ll": "305db7a9563a43383101203d6fd5a8b74b72986eb13ebebc97fce433685389f5",
+    "opendsp/tests/quotient_modes.py": "0d680358a28d2c27787dffdeb6924509feab2fe5866f0680f110fb806c958033",
+    "opendsp/tests/quotient_state.s": "29e707adadf4c004c9d329bc85987ca29013ac7973fb2b3de8d6bf2a294b7a1b",
+    "opendsp/tests/runner.cpp": "5610fe2d980cb17cc8b1fbd97ad851e5f0fa6ddd95128d770d8365fbd0395c30",
+    "opendsp/tests/link.ld": "bec154184a79030514506410cbff394600ce0c41f5ba3254c86057d2de3fd174"
+  },
+  "toolchain": {
+    "native-cc": "19b93d0f48673f57827b9ecaf218f8661871a78fae7505afbc1dab6df30f784d",
+    "cc1-word-strings.exe": "0ca871acddbc22d56a57e20979093e8ed19f1f9d5da7da62a963200c52868db6",
+    "llc-program-loads.exe": "ada3f12177a6ea9c5c942e23e08ff8ae9d5864b60cdec5695111c25e282b090c",
+    "patched-ld": "c799692924cef22bed13a1c98e815f2d713bf1f070948774ad28e814962f7fb9"
+  },
+  "baseline_runtime_sha256": "2d5c82f2da1b309b342b95705986f1438c5f747419e7ea27d354424afd8a4471",
+  "vectors": {
+    "pairs": 975,
+    "baseline": {
+      "completed": true,
+      "comparisons": 11700,
+      "errors": 0,
+      "steps": 12654981,
+      "step_limit": 60000000,
+      "mailbox": 28672,
+      "case": "division_vectors",
+      "optimization": "-O2",
+      "diagnostics": [],
+      "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+      "physical_hardware": false,
+      "backend": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/llc-program-loads.exe",
+      "backend_flags": ""
+    },
+    "candidate": {
+      "completed": true,
+      "comparisons": 11700,
+      "errors": 0,
+      "steps": 3325551,
+      "step_limit": 60000000,
+      "mailbox": 28672,
+      "case": "division_vectors",
+      "optimization": "-O2",
+      "diagnostics": [],
+      "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+      "physical_hardware": false,
+      "backend": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/llc-program-loads.exe",
+      "backend_flags": ""
+    },
+    "step_reduction": 0.7372140661451803,
+    "generated_source_sha256": "de013e18ca7f5812d7a2b862fe1856163ff4291ecae5c990ec6eb2b1bfa68e4a",
+    "reference_sha256": "2419e8adc719ba396ac5db3b7427c07afe729e662489e98202885048ad4b5c93"
+  },
+  "size_optimized": {
+    "completed": true,
+    "comparisons": 3588,
+    "errors": 0,
+    "steps": 836085,
+    "step_limit": 30000000,
+    "mailbox": 12288,
+    "case": "division",
+    "optimization": "-Oz",
+    "diagnostics": [],
+    "compiler": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/native-cc",
+    "physical_hardware": false,
+    "backend": "/mnt/g/Development/NDSPFirm/research/ogg-playback/research/ogg-dsp-port/build/compiler-source/llc-program-loads.exe",
+    "backend_flags": ""
+  },
+  "arithmetic_modes": {
+    "completed": true,
+    "comparisons": 112,
+    "errors": 0,
+    "steps": 8016,
+    "passed": true,
+    "physical_hardware": false,
+    "modes": [
+      0,
+      1,
+      2,
+      3,
+      128,
+      129,
+      130,
+      131,
+      3072,
+      3073,
+      3074,
+      3075,
+      3200,
+      3201,
+      3202,
+      3203
+    ],
+    "sources": {
+      "opendsp/tests/crt0.s": "ce51a6fddc5d23fedea6a884d88e5e5aa3c5382db2451394bd02e8e49a93730b",
+      "opendsp/tests/quotient_state.s": "29e707adadf4c004c9d329bc85987ca29013ac7973fb2b3de8d6bf2a294b7a1b",
+      "opendsp/runtime/quotient.s": "cf53d911c4c3ad43f0c16930565c82c73913b3839337716c2f3fbb237352763c",
+      "opendsp/tests/build/quotient-modes/modes.c": "a95a433874e7a54cde7d7818e54f21f955da8a8216fc815294e567b0a046c4a3",
+      "opendsp/tests/kernels.h": "37319518b058689515a52d35ad7b28aeae85edf8f0b14ff012e4c172223ae3d3",
+      "opendsp/tests/link.ld": "bec154184a79030514506410cbff394600ce0c41f5ba3254c86057d2de3fd174",
+      "opendsp/tests/runner.cpp": "5610fe2d980cb17cc8b1fbd97ad851e5f0fa6ddd95128d770d8365fbd0395c30",
+      "opendsp/tests/quotient_modes.py": "0d680358a28d2c27787dffdeb6924509feab2fe5866f0680f110fb806c958033"
+    },
+    "image_sha256": "e67b940c2b40fdda38b62923ffbbe7c531fdc503cc36a5b66df45b5fcb62d8d2",
+    "reference_sha256": "4c2cf63c1d9f13d8da48acfda61c1f3082cc19db3977adfbb0a357c5c733a8f0"
+  },
+  "regressions": {
+    "passed": true,
+    "physical_hardware": false,
+    "compiler_kind": "Local components",
+    "clean_build": false,
+    "expected_cases": 48,
+    "cases": [
+      {
+        "case": "bulk",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 163,
+        "errors": 0,
+        "steps": 2184
+      },
+      {
+        "case": "byte_memory",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1828,
+        "errors": 0,
+        "steps": 24098
+      },
+      {
+        "case": "byte_order",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 202,
+        "errors": 0,
+        "steps": 2956
+      },
+      {
+        "case": "callback",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 216,
+        "errors": 0,
+        "steps": 43654
+      },
+      {
+        "case": "calls",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 639,
+        "errors": 0,
+        "steps": 118880
+      },
+      {
+        "case": "clz",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 642,
+        "errors": 0,
+        "steps": 87067
+      },
+      {
+        "case": "comparisons",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 333,
+        "errors": 0,
+        "steps": 40142
+      },
+      {
+        "case": "division",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 3588,
+        "errors": 0,
+        "steps": 836085
+      },
+      {
+        "case": "dynamic_stack",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 140,
+        "errors": 0,
+        "steps": 825997
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 480,
+        "errors": 0,
+        "steps": 148278
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 480,
+        "errors": 0,
+        "steps": 148280
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 480,
+        "errors": 0,
+        "steps": 148730
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 480,
+        "errors": 0,
+        "steps": 148729
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 480,
+        "errors": 0,
+        "steps": 148729
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 960,
+        "errors": 0,
+        "steps": 367999
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 960,
+        "errors": 0,
+        "steps": 368001
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 960,
+        "errors": 0,
+        "steps": 368924
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 960,
+        "errors": 0,
+        "steps": 368923
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 960,
+        "errors": 0,
+        "steps": 368922
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1920,
+        "errors": 0,
+        "steps": 762836
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1920,
+        "errors": 0,
+        "steps": 762838
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1920,
+        "errors": 0,
+        "steps": 764698
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1920,
+        "errors": 0,
+        "steps": 764698
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1920,
+        "errors": 0,
+        "steps": 764695
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 240,
+        "errors": 0,
+        "steps": 71348
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 240,
+        "errors": 0,
+        "steps": 71350
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 240,
+        "errors": 0,
+        "steps": 71571
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 240,
+        "errors": 0,
+        "steps": 71572
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 240,
+        "errors": 0,
+        "steps": 71571
+      },
+      {
+        "case": "fft_math",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 780,
+        "errors": 0,
+        "steps": 13996
+      },
+      {
+        "case": "granules",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1716,
+        "errors": 0,
+        "steps": 254475
+      },
+      {
+        "case": "high_product",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 3834,
+        "errors": 0,
+        "steps": 929960
+      },
+      {
+        "case": "interpolate",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 335,
+        "errors": 0,
+        "steps": 51788
+      },
+      {
+        "case": "mdct",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 368,
+        "errors": 0,
+        "steps": 263435
+      },
+      {
+        "case": "mdct",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 608,
+        "errors": 0,
+        "steps": 505241
+      },
+      {
+        "case": "mdct",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1088,
+        "errors": 0,
+        "steps": 1105346
+      },
+      {
+        "case": "mdct",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 2048,
+        "errors": 0,
+        "steps": 2217420
+      },
+      {
+        "case": "multiply",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 2628,
+        "errors": 0,
+        "steps": 263419
+      },
+      {
+        "case": "nlsf",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 256,
+        "errors": 0,
+        "steps": 516700
+      },
+      {
+        "case": "pointers",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 17,
+        "errors": 0,
+        "steps": 164
+      },
+      {
+        "case": "range_decoder",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 6664,
+        "errors": 0,
+        "steps": 1696795
+      },
+      {
+        "case": "silk_math",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 293,
+        "errors": 0,
+        "steps": 98172
+      },
+      {
+        "case": "simple",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 495,
+        "errors": 0,
+        "steps": 5595
+      },
+      {
+        "case": "size_types",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 180,
+        "errors": 0,
+        "steps": 11957
+      },
+      {
+        "case": "sort",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 36,
+        "errors": 0,
+        "steps": 8578
+      },
+      {
+        "case": "stack",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 747,
+        "errors": 0,
+        "steps": 11753
+      },
+      {
+        "case": "table_words",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 23,
+        "errors": 0,
+        "steps": 233
+      },
+      {
+        "case": "word_memory",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 140,
+        "errors": 0,
+        "steps": 4948
+      }
+    ],
+    "comparisons": 48007,
+    "toolchain": {
+      "TEAK_CC1": "0ca871acddbc22d56a57e20979093e8ed19f1f9d5da7da62a963200c52868db6",
+      "TEAK_LLC": "ada3f12177a6ea9c5c942e23e08ff8ae9d5864b60cdec5695111c25e282b090c"
+    }
+  }
+}

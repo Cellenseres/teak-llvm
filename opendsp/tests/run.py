@@ -17,6 +17,7 @@ TREMOR = Path(os.environ.get('TREMOR_SOURCE', str(OPUS.parent/'tremor'))).resolv
 OGG = Path(os.environ.get('OGG_SOURCE', str(OPUS.parent/'libogg'))).resolve()
 
 BUILD = Path(os.environ.get('TEAK_TEST_BUILD', str(HERE/'build'))).resolve()
+RUNTIME = Path(os.environ.get('TEAK_RUNTIME_SOURCE', str(HERE.parent/'runtime'))).resolve()
 VALUES = [-32768, -32767, -1024, -1, 0, 1, 1024, 32766, 32767]
 
 
@@ -1047,6 +1048,39 @@ u16 divide40(const u16 *,u16,u16);
     return source,body,expected
 
 
+def division_vectors_case():
+    mask = (1 << 40) - 1
+    pairs = []
+    for bit in range(40):
+        for delta in [-1, 0, 1]:
+            divisor = ((1 << bit) + delta) & mask
+            if divisor:
+                pairs.extend((left, divisor) for left in [0, mask, divisor - 1, divisor])
+    state = 0x13579bdf97
+    for _ in range(512):
+        state = (state * 6364136223846793005 + 1442695040888963407) & mask
+        numerator = state
+        state = (state * 6364136223846793005 + 1442695040888963407) & mask
+        pairs.append((numerator, state or 1))
+    pairs = sorted(set(pairs) - {(1 << 39, mask)})
+    packed, expected = [], []
+    for left, right in pairs:
+        packed.extend((value >> shift) & 65535 for value in [left, right] for shift in [0, 16, 32])
+        signed_left = left - (1 << 40) if left & (1 << 39) else left
+        signed_right = right - (1 << 40) if right & (1 << 39) else right
+        quotient = abs(signed_left) // abs(signed_right)
+        if (signed_left < 0) != (signed_right < 0):
+            quotient = -quotient
+        for result in [left // right, left % right, quotient, signed_left - quotient * signed_right]:
+            expected.extend(((result & mask) >> shift) & 65535 for shift in [0, 16, 32])
+    source = ('u16 divide40(const u16 *,u16,u16);\nvolatile u16 division_vectors[]={' +
+              ','.join(map(str, packed)) + '};\n')
+    body = ['u16 pair, operation, shift;', f'for (pair=0; pair<{len(pairs)}; ++pair)',
+            'for (operation=0; operation<4; ++operation)', 'for (shift=0; shift<40; shift+=16)',
+            'out[n++]=divide40((const u16 *)division_vectors+pair*6,operation,shift);']
+    return source, body, expected
+
+
 def vorbis_mdct_case(size, vector):
     source = '#include "mdct.h"\n' + f's32 vorbis_output[{size+2}]={{0}};\n'
     values = ['0', '(index == 0 ? 1048576 : 0)',
@@ -1218,7 +1252,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', default='-O2')
     parser.add_argument('--label')
-    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct', 'division', 'range_decoder', 'byte_order', 'dynamic_stack', 'size_types', 'granules', 'varargs', 'silk_core', 'word_product', 'byte_constants', 'byte_strings'], default='comparisons')
+    parser.add_argument('--case', choices=['comparisons', 'simple', 'sort', 'nlsf', 'silk_math', 'clz', 'multiply', 'stack', 'bulk', 'fft', 'pointers', 'fft_math', 'table_words', 'calls', 'interpolate', 'word_memory', 'mdct', 'high_product', 'callback', 'byte_memory', 'vorbis_mdct', 'division', 'division_vectors', 'range_decoder', 'byte_order', 'dynamic_stack', 'size_types', 'granules', 'varargs', 'silk_core', 'word_product', 'byte_constants', 'byte_strings'], default='comparisons')
     parser.add_argument('--max-steps',type=int,default=3000000)
     parser.add_argument('--vorbis-size',type=int,choices=[64,128,256,512,1024,2048,4096,8192],default=64)
     parser.add_argument('--vorbis-vector',type=int,choices=range(5),default=0)
@@ -1249,8 +1283,8 @@ def main():
         functions,body,expected=byte_order_case()
     elif args.case == 'range_decoder':
         functions,body,expected=range_decoder_case()
-    elif args.case == 'division':
-        functions,body,expected=division_case()
+    elif args.case in ['division', 'division_vectors']:
+        functions,body,expected=division_case() if args.case == 'division' else division_vectors_case()
     elif args.case == 'vorbis_mdct':
         functions,body,expected=vorbis_mdct_case(args.vorbis_size,args.vorbis_vector)
     elif args.case == 'byte_memory':
@@ -1277,7 +1311,7 @@ def main():
         out_declaration=f'extern u16 out[{len(expected)}] __attribute__((alias("mdct_output")));'
     if args.case == 'vorbis_mdct':
         out_declaration=f'extern u16 out[{len(expected)}] __attribute__((alias("vorbis_output")));'
-    mailbox=0x7000 if args.case=='vorbis_mdct' else 0x3000
+    mailbox=0x7000 if args.case in ['vorbis_mdct', 'division_vectors'] else 0x3000
     source = BUILD / (stem + '.c')
     source.write_text('#include "kernels.h"\n#ifdef HOST_REFERENCE\n#include <stdio.h>\n#endif\n' + functions + '\nvolatile s16 input[] = {' + ','.join(map(str, VALUES)) + '};\n' +
                       out_declaration+'\nint main(void) { u16 n=0;\n' + '\n'.join(body) +
@@ -1301,10 +1335,10 @@ def main():
         command([CC, *flags, '-c', path, '-o', obj], path.stem+'.log')
         objects.append(obj)
     command([CC, *flags, '-S', source, '-o', BUILD / (stem+'.s')], stem+'-asm.log')
-    paths=[HERE.parent/'runtime/divide.ll',HERE.parent/'runtime/multiply.ll',HERE.parent/'runtime/products.s']
+    paths=[RUNTIME/'divide.ll',RUNTIME/'quotient.s',RUNTIME/'multiply.ll',RUNTIME/'products.s']
     if args.case=='word_product':
         paths.append(HERE/'product_state.s')
-    if args.case=='division':
+    if args.case in ['division', 'division_vectors']:
         paths.append(HERE/'division40.ll')
     for path in paths:
         obj=BUILD/(path.stem+'.o')
@@ -1345,8 +1379,8 @@ def main():
         linker_script=BUILD/'callback.ld'
         linker_script.write_text((HERE/'link.ld').read_text().replace('    . = 0x10002000;',
             '    . = 0x20000;\n    .callbacks_far : { *(.callbacks_far) } :prog\n    . = 0x10002000;'))
-    if args.case=='vorbis_mdct':
-        linker_script=BUILD/'vorbis_mdct.ld'
+    if args.case in ['vorbis_mdct', 'division_vectors']:
+        linker_script=BUILD/(args.case+'.ld')
         linker_script.write_text((HERE/'link.ld').read_text().replace('0x10006000','0x1000e000'))
     command([LD, '--gc-sections', '-T', linker_script, *objects, '-o', elf], 'link.log')
     runner = BUILD/'runner'

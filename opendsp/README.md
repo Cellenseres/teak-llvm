@@ -405,3 +405,25 @@ leave characters zeroed. `byte_strings` checks 107 words at both `-O2`
 and `-Oz`, covering empty strings, odd lengths, embedded zeroes, high
 bytes, padding and direct literals. The byte-memory and aggregate tests
 also pass. See `opendsp/validation/byte-strings-20261026.json`.
+
+## Division runtime
+
+Signed and unsigned division retain their existing entry points. Their
+shared `__teak_divmod40` helper now uses a native shift/subtract loop in
+`opendsp/runtime/quotient.s`. It handles all 40 bits, returns early for a
+smaller numerator and preserves MOD0, R0 and R1. It leaves interrupts enabled
+when they were enabled on entry. Rebuild the runtime archive when updating.
+
+`division_vectors` checks 975 pairs against independent integer results.
+All 11,700 quotient/remainder words match, including signed extrema and
+divisors near powers of two. The same inputs decrease from 12,654,981 to
+3,325,551 emulator instructions, about 74 percent. `division` also passes
+3,588 words at `-Oz`; the existing 48 groups pass 48,007 words at their
+recorded settings.
+
+`python3 opendsp/tests/quotient_modes.py` checks return bits and preserved
+registers across 16 arithmetic modes, including saturation and logical
+shifts. All 112 words match. MOD0 bits 2..4 are read-only in Teakra; their
+observed reset value is included in the reference. These tests use local
+compiler components and do not establish physical timing. See
+`opendsp/validation/quotient-20261026.json`.
