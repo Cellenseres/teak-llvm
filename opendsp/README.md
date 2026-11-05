@@ -13,6 +13,16 @@ OpenDSP's former build-time patches are ordinary commits here:
 New fixes follow those commits. This is still an experimental Teak compiler,
 not a claim of complete C support or working Vorbis/Opus DSP playback.
 
+## Stack loads with live flags
+
+Signed 16-bit stack loads into A0 or A1 now restore saved STT0. Previously,
+the status word stayed on the stack, and RET consumed an invalid address.
+The native MIR regression covers all four accumulators, short and long frame
+offsets, both branch outcomes, arithmetic modes and dead-flag controls.
+All 768 cases and 6,144 words match; the same MIR aborts with the old backend.
+Run `python3 opendsp/tests/stack_flags.py` with the usual toolchain environment.
+Set `TEAK_LLC` to the matching llc binary. Physical behavior remains untested.
+
 ## Incorrect condition reuse
 
 The old backend can emit `cmp; clr a0, lt; ret lt`. CLR changes ICC, so the RET

@@ -1,0 +1,469 @@
+{
+  "passed": true,
+  "physical_hardware": false,
+  "clean_build": false,
+  "compiler_kind": "Locally rebuilt components",
+  "base_commit": "9d9f15da60f",
+  "sources": {
+    "opendsp/tests/stack_flags.py": "c161260ccac98e52f3417c728e4d33825099c667497cd2f199ab193995f4a3f4",
+    "opendsp/tests/runner.cpp": "5610fe2d980cb17cc8b1fbd97ad851e5f0fa6ddd95128d770d8365fbd0395c30",
+    "opendsp/tests/crt0.s": "ce51a6fddc5d23fedea6a884d88e5e5aa3c5382db2451394bd02e8e49a93730b",
+    "opendsp/tests/link.ld": "bec154184a79030514506410cbff394600ce0c41f5ba3254c86057d2de3fd174",
+    "llvm/lib/Target/Teak/TeakInstrInfo.cpp": "31acefce68cddc30fe2519f916417fdb1abc65cf7327fd244bea92b59526a08b",
+    ".github/workflows/opendsp.yml": "11673acc2498ddf7f4f2001ba4a6619a907f040692fff823a8337f0fbddf8eeb",
+    "opendsp/README.md": "f2be8210caff0daa37651de44123ea946ba7feee9b48efe9971d539046c48bcf",
+    "opendsp/tests/run.py": "c4fe2cc52fb60d54799ebe704c3a3e741379715ea9d7ce25ea09ecf30fc796b2"
+  },
+  "toolchain": {
+    "native-cc": "19b93d0f48673f57827b9ecaf218f8661871a78fae7505afbc1dab6df30f784d",
+    "cc1-size-types.exe": "f54cd88dbca64bff87b8bb8b4b8ba187ba778734ad0f56ece11a1e2f0196a6de",
+    "cc1-word-strings.exe": "0ca871acddbc22d56a57e20979093e8ed19f1f9d5da7da62a963200c52868db6",
+    "llc-program-loads.exe": "ada3f12177a6ea9c5c942e23e08ff8ae9d5864b60cdec5695111c25e282b090c",
+    "llc-stack-flags.exe": "60a09f49abb3b9fc9ea5eebef53c656fa6567e8e9b8eba50e166020fd6d346ba",
+    "patched-ld": "c799692924cef22bed13a1c98e815f2d713bf1f070948774ad28e814962f7fb9"
+  },
+  "native_mir": {
+    "passed": true,
+    "physical_hardware": false,
+    "cases": 768,
+    "comparisons": 6144,
+    "result": {
+      "current": {
+        "completed": true,
+        "comparisons": 6144,
+        "errors": 0,
+        "steps": 82862,
+        "exit_code": 0,
+        "image_sha256": "420897fd587d9c047b547af52986a0fece225b2c0c160e980a6f82c9d13bf73c",
+        "object_sha256": "bafa29a2135eaea9e741aa1d1792ff15a286b43880afd96c2300b2ba42719fa3"
+      },
+      "baseline": {
+        "completed": false,
+        "exit_code": -6,
+        "image_sha256": "c70d347ffcbaab91c9c83a86d406b91b5071d9b0ee18690c441998d78f9167b9",
+        "object_sha256": "722debcde56e6bae1153e3c5961d7c5c57dd3e74c1b4953e052fb0c8c5cfb4d0"
+      }
+    },
+    "arithmetic_modes": [
+      3,
+      131
+    ],
+    "frame_offsets": [
+      -65,
+      0,
+      129
+    ],
+    "interrupts_masked": true,
+    "sources": {
+      "opendsp/tests/stack_flags.py": "c161260ccac98e52f3417c728e4d33825099c667497cd2f199ab193995f4a3f4",
+      "opendsp/tests/runner.cpp": "5610fe2d980cb17cc8b1fbd97ad851e5f0fa6ddd95128d770d8365fbd0395c30",
+      "opendsp/tests/crt0.s": "ce51a6fddc5d23fedea6a884d88e5e5aa3c5382db2451394bd02e8e49a93730b",
+      "opendsp/tests/link.ld": "bec154184a79030514506410cbff394600ce0c41f5ba3254c86057d2de3fd174",
+      "llvm/lib/Target/Teak/TeakInstrInfo.cpp": "31acefce68cddc30fe2519f916417fdb1abc65cf7327fd244bea92b59526a08b"
+    },
+    "generated": {
+      "main.c": "ead3cd73cb7d48c6006daa4702065a7f415105100a89f2cb2eba01c10bdd8555",
+      "loads.mir": "0b2e9be20da7e84e1c2419cf4ee5d97fafe2d249c56be0b0633128080f7733ae",
+      "wrappers.s": "f3bac9182fb5c982d8d4f1a63510abb30879d36d463a329acb5bdd8ec4fb495a"
+    }
+  },
+  "regressions": {
+    "passed": true,
+    "physical_hardware": false,
+    "compiler_kind": "Local components",
+    "clean_build": false,
+    "expected_cases": 48,
+    "cases": [
+      {
+        "case": "bulk",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 163,
+        "errors": 0,
+        "steps": 2184
+      },
+      {
+        "case": "byte_memory",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1828,
+        "errors": 0,
+        "steps": 24098
+      },
+      {
+        "case": "byte_order",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 202,
+        "errors": 0,
+        "steps": 2956
+      },
+      {
+        "case": "callback",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 216,
+        "errors": 0,
+        "steps": 43654
+      },
+      {
+        "case": "calls",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 639,
+        "errors": 0,
+        "steps": 118880
+      },
+      {
+        "case": "clz",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 642,
+        "errors": 0,
+        "steps": 87067
+      },
+      {
+        "case": "comparisons",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 333,
+        "errors": 0,
+        "steps": 40142
+      },
+      {
+        "case": "division",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 3588,
+        "errors": 0,
+        "steps": 836085
+      },
+      {
+        "case": "dynamic_stack",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 140,
+        "errors": 0,
+        "steps": 825997
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 480,
+        "errors": 0,
+        "steps": 148278
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 480,
+        "errors": 0,
+        "steps": 148280
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 480,
+        "errors": 0,
+        "steps": 148730
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 480,
+        "errors": 0,
+        "steps": 148729
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 480,
+        "errors": 0,
+        "steps": 148729
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 960,
+        "errors": 0,
+        "steps": 367999
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 960,
+        "errors": 0,
+        "steps": 368001
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 960,
+        "errors": 0,
+        "steps": 368924
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 960,
+        "errors": 0,
+        "steps": 368923
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 960,
+        "errors": 0,
+        "steps": 368922
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1920,
+        "errors": 0,
+        "steps": 762836
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1920,
+        "errors": 0,
+        "steps": 762838
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1920,
+        "errors": 0,
+        "steps": 764698
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1920,
+        "errors": 0,
+        "steps": 764698
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1920,
+        "errors": 0,
+        "steps": 764695
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 240,
+        "errors": 0,
+        "steps": 71348
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 240,
+        "errors": 0,
+        "steps": 71350
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 240,
+        "errors": 0,
+        "steps": 71571
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 240,
+        "errors": 0,
+        "steps": 71572
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 240,
+        "errors": 0,
+        "steps": 71571
+      },
+      {
+        "case": "fft_math",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 780,
+        "errors": 0,
+        "steps": 13996
+      },
+      {
+        "case": "granules",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1716,
+        "errors": 0,
+        "steps": 254475
+      },
+      {
+        "case": "high_product",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 3834,
+        "errors": 0,
+        "steps": 929960
+      },
+      {
+        "case": "interpolate",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 335,
+        "errors": 0,
+        "steps": 51788
+      },
+      {
+        "case": "mdct",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 368,
+        "errors": 0,
+        "steps": 263435
+      },
+      {
+        "case": "mdct",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 608,
+        "errors": 0,
+        "steps": 505241
+      },
+      {
+        "case": "mdct",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1088,
+        "errors": 0,
+        "steps": 1105346
+      },
+      {
+        "case": "mdct",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 2048,
+        "errors": 0,
+        "steps": 2217420
+      },
+      {
+        "case": "multiply",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 2628,
+        "errors": 0,
+        "steps": 263419
+      },
+      {
+        "case": "nlsf",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 256,
+        "errors": 0,
+        "steps": 516700
+      },
+      {
+        "case": "pointers",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 17,
+        "errors": 0,
+        "steps": 164
+      },
+      {
+        "case": "range_decoder",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 6664,
+        "errors": 0,
+        "steps": 1696795
+      },
+      {
+        "case": "silk_math",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 293,
+        "errors": 0,
+        "steps": 98172
+      },
+      {
+        "case": "simple",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 495,
+        "errors": 0,
+        "steps": 5595
+      },
+      {
+        "case": "size_types",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 180,
+        "errors": 0,
+        "steps": 11957
+      },
+      {
+        "case": "sort",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 36,
+        "errors": 0,
+        "steps": 8578
+      },
+      {
+        "case": "stack",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 747,
+        "errors": 0,
+        "steps": 11753
+      },
+      {
+        "case": "table_words",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 23,
+        "errors": 0,
+        "steps": 233
+      },
+      {
+        "case": "word_memory",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 140,
+        "errors": 0,
+        "steps": 4948
+      }
+    ],
+    "comparisons": 48007,
+    "toolchain": {
+      "TEAK_CC1": "0ca871acddbc22d56a57e20979093e8ed19f1f9d5da7da62a963200c52868db6",
+      "TEAK_LLC": "60a09f49abb3b9fc9ea5eebef53c656fa6567e8e9b8eba50e166020fd6d346ba"
+    }
+  },
+  "baseline_failure": "RET consumes an unrestored STT0 word and exceeds the program address range."
+}

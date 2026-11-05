@@ -703,9 +703,9 @@ bool TeakInstrInfo::expandPostRAPseudo(MachineInstr &MI) const
                 BuildMI(MBB, MI, DL, get(Teak::MOV_memrn_ab), dstReg)
                     .addReg(MI.getOperand(1).getReg());
                 makeRnRegDisplacement(MBB, MI, DL, MI.getOperand(1).getReg(), -frameOffset);
-                if(keepFlags)
-                    BuildMI(MBB, MI, DL, get(Teak::POP_ararpsttmod), Teak::STT0);
             }
+            if(keepFlags)
+                BuildMI(MBB, MI, DL, get(Teak::POP_ararpsttmod), Teak::STT0);
             MBB.erase(MI);
             return true;
         }
