@@ -1,0 +1,666 @@
+{
+  "passed": true,
+  "physical_hardware": false,
+  "clean_build": false,
+  "compiler_kind": "Locally rebuilt components",
+  "base_commit": "5504a1ff214",
+  "sources": {
+    "opendsp/tests/wide_spills.py": "cbd44d215026403f383b19be0edf9cdd56f3f20c3713a22ec678ff1132298dcc",
+    "opendsp/tests/stack_flags.py": "c161260ccac98e52f3417c728e4d33825099c667497cd2f199ab193995f4a3f4",
+    "opendsp/tests/runner.cpp": "5610fe2d980cb17cc8b1fbd97ad851e5f0fa6ddd95128d770d8365fbd0395c30",
+    "opendsp/tests/crt0.s": "ce51a6fddc5d23fedea6a884d88e5e5aa3c5382db2451394bd02e8e49a93730b",
+    "opendsp/tests/link.ld": "bec154184a79030514506410cbff394600ce0c41f5ba3254c86057d2de3fd174",
+    "llvm/lib/Target/Teak/TeakInstrInfo.cpp": "b1ccae9fa1a0a6aaeb8c5215bdf7db3a155f214f4c8b2d15fa6693332eab1ee8",
+    ".github/workflows/opendsp.yml": "fc86335c62dc7bd4be8cdda62aa755b8197da35fdd4ba48073927e7eda49f7ad",
+    "opendsp/README.md": "ea9485173cacee156ee04950acef7c56b5618f1c25a148c808f147aa81486098",
+    "opendsp/tests/run.py": "c4fe2cc52fb60d54799ebe704c3a3e741379715ea9d7ce25ea09ecf30fc796b2"
+  },
+  "toolchain": {
+    "native-cc": "19b93d0f48673f57827b9ecaf218f8661871a78fae7505afbc1dab6df30f784d",
+    "cc1-size-types.exe": "f54cd88dbca64bff87b8bb8b4b8ba187ba778734ad0f56ece11a1e2f0196a6de",
+    "cc1-word-strings.exe": "0ca871acddbc22d56a57e20979093e8ed19f1f9d5da7da62a963200c52868db6",
+    "llc-stack-flags.exe": "60a09f49abb3b9fc9ea5eebef53c656fa6567e8e9b8eba50e166020fd6d346ba",
+    "llc-wide-stores-final.exe": "29e42606c722453f522a7274b81901e751e2880cc8c60fddc8d708e789150667",
+    "patched-ld": "c799692924cef22bed13a1c98e815f2d713bf1f070948774ad28e814962f7fb9"
+  },
+  "native_mir": {
+    "passed": true,
+    "physical_hardware": false,
+    "interrupts_masked": true,
+    "result": {
+      "current": {
+        "comparisons": 20736,
+        "steps": 220617,
+        "results": [
+          {
+            "completed": true,
+            "comparisons": 2304,
+            "errors": 0,
+            "steps": 24513
+          },
+          {
+            "completed": true,
+            "comparisons": 2304,
+            "errors": 0,
+            "steps": 24513
+          },
+          {
+            "completed": true,
+            "comparisons": 2304,
+            "errors": 0,
+            "steps": 24513
+          },
+          {
+            "completed": true,
+            "comparisons": 2304,
+            "errors": 0,
+            "steps": 24513
+          },
+          {
+            "completed": true,
+            "comparisons": 2304,
+            "errors": 0,
+            "steps": 24513
+          },
+          {
+            "completed": true,
+            "comparisons": 2304,
+            "errors": 0,
+            "steps": 24513
+          },
+          {
+            "completed": true,
+            "comparisons": 2304,
+            "errors": 0,
+            "steps": 24513
+          },
+          {
+            "completed": true,
+            "comparisons": 2304,
+            "errors": 0,
+            "steps": 24513
+          },
+          {
+            "completed": true,
+            "comparisons": 2304,
+            "errors": 0,
+            "steps": 24513
+          }
+        ],
+        "object_sha256": "34b3b68c7556186ed8cb8964f8a461499355c6d1a1c90d06fc0f0577fd12b249"
+      },
+      "baseline": {
+        "comparisons": 20736,
+        "steps": 223785,
+        "results": [
+          {
+            "completed": true,
+            "comparisons": 2304,
+            "errors": 0,
+            "steps": 24865
+          },
+          {
+            "completed": true,
+            "comparisons": 2304,
+            "errors": 0,
+            "steps": 24865
+          },
+          {
+            "completed": true,
+            "comparisons": 2304,
+            "errors": 0,
+            "steps": 24865
+          },
+          {
+            "completed": true,
+            "comparisons": 2304,
+            "errors": 0,
+            "steps": 24865
+          },
+          {
+            "completed": true,
+            "comparisons": 2304,
+            "errors": 0,
+            "steps": 24865
+          },
+          {
+            "completed": true,
+            "comparisons": 2304,
+            "errors": 0,
+            "steps": 24865
+          },
+          {
+            "completed": true,
+            "comparisons": 2304,
+            "errors": 0,
+            "steps": 24865
+          },
+          {
+            "completed": true,
+            "comparisons": 2304,
+            "errors": 0,
+            "steps": 24865
+          },
+          {
+            "completed": true,
+            "comparisons": 2304,
+            "errors": 0,
+            "steps": 24865
+          }
+        ],
+        "object_sha256": "292036172e13e475d0e621dc76f39d1dc5d59ac5a8c8dda9eaeefde50ba914d3"
+      }
+    },
+    "cases": 1728,
+    "sources": {
+      "opendsp/tests/wide_spills.py": "cbd44d215026403f383b19be0edf9cdd56f3f20c3713a22ec678ff1132298dcc",
+      "opendsp/tests/stack_flags.py": "c161260ccac98e52f3417c728e4d33825099c667497cd2f199ab193995f4a3f4",
+      "opendsp/tests/runner.cpp": "5610fe2d980cb17cc8b1fbd97ad851e5f0fa6ddd95128d770d8365fbd0395c30",
+      "opendsp/tests/crt0.s": "ce51a6fddc5d23fedea6a884d88e5e5aa3c5382db2451394bd02e8e49a93730b",
+      "opendsp/tests/link.ld": "bec154184a79030514506410cbff394600ce0c41f5ba3254c86057d2de3fd174",
+      "llvm/lib/Target/Teak/TeakInstrInfo.cpp": "b1ccae9fa1a0a6aaeb8c5215bdf7db3a155f214f4c8b2d15fa6693332eab1ee8"
+    }
+  },
+  "signed_load_flags": {
+    "passed": true,
+    "physical_hardware": false,
+    "cases": 768,
+    "comparisons": 6144,
+    "result": {
+      "current": {
+        "completed": true,
+        "comparisons": 6144,
+        "errors": 0,
+        "steps": 82666,
+        "exit_code": 0,
+        "image_sha256": "fba60788501f2c193da8651618b1171980754384e8cdc66885be1ad1b7f440b7",
+        "object_sha256": "bafa29a2135eaea9e741aa1d1792ff15a286b43880afd96c2300b2ba42719fa3"
+      },
+      "baseline": {
+        "completed": false,
+        "exit_code": -6,
+        "image_sha256": "b7f33ac43d81e166d977c09ba0107a7be7d8ae034927734007959fc407b8879b",
+        "object_sha256": "722debcde56e6bae1153e3c5961d7c5c57dd3e74c1b4953e052fb0c8c5cfb4d0"
+      }
+    },
+    "arithmetic_modes": [
+      3,
+      131
+    ],
+    "frame_offsets": [
+      -65,
+      0,
+      129
+    ],
+    "interrupts_masked": true,
+    "sources": {
+      "opendsp/tests/stack_flags.py": "c161260ccac98e52f3417c728e4d33825099c667497cd2f199ab193995f4a3f4",
+      "opendsp/tests/runner.cpp": "5610fe2d980cb17cc8b1fbd97ad851e5f0fa6ddd95128d770d8365fbd0395c30",
+      "opendsp/tests/crt0.s": "ce51a6fddc5d23fedea6a884d88e5e5aa3c5382db2451394bd02e8e49a93730b",
+      "opendsp/tests/link.ld": "bec154184a79030514506410cbff394600ce0c41f5ba3254c86057d2de3fd174",
+      "llvm/lib/Target/Teak/TeakInstrInfo.cpp": "b1ccae9fa1a0a6aaeb8c5215bdf7db3a155f214f4c8b2d15fa6693332eab1ee8"
+    },
+    "generated": {
+      "main.c": "ead3cd73cb7d48c6006daa4702065a7f415105100a89f2cb2eba01c10bdd8555",
+      "loads.mir": "0b2e9be20da7e84e1c2419cf4ee5d97fafe2d249c56be0b0633128080f7733ae",
+      "wrappers.s": "f3bac9182fb5c982d8d4f1a63510abb30879d36d463a329acb5bdd8ec4fb495a"
+    }
+  },
+  "regressions": {
+    "passed": true,
+    "physical_hardware": false,
+    "compiler_kind": "Local components",
+    "clean_build": false,
+    "expected_cases": 48,
+    "cases": [
+      {
+        "case": "bulk",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 163,
+        "errors": 0,
+        "steps": 2166
+      },
+      {
+        "case": "byte_memory",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1828,
+        "errors": 0,
+        "steps": 24098
+      },
+      {
+        "case": "byte_order",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 202,
+        "errors": 0,
+        "steps": 2956
+      },
+      {
+        "case": "callback",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 216,
+        "errors": 0,
+        "steps": 41486
+      },
+      {
+        "case": "calls",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 639,
+        "errors": 0,
+        "steps": 112974
+      },
+      {
+        "case": "clz",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 642,
+        "errors": 0,
+        "steps": 83877
+      },
+      {
+        "case": "comparisons",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 333,
+        "errors": 0,
+        "steps": 38360
+      },
+      {
+        "case": "division",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 3588,
+        "errors": 0,
+        "steps": 824099
+      },
+      {
+        "case": "dynamic_stack",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 140,
+        "errors": 0,
+        "steps": 794627
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 480,
+        "errors": 0,
+        "steps": 143012
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 480,
+        "errors": 0,
+        "steps": 143014
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 480,
+        "errors": 0,
+        "steps": 143466
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 480,
+        "errors": 0,
+        "steps": 143465
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 480,
+        "errors": 0,
+        "steps": 143465
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 960,
+        "errors": 0,
+        "steps": 354337
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 960,
+        "errors": 0,
+        "steps": 354339
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 960,
+        "errors": 0,
+        "steps": 355264
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 960,
+        "errors": 0,
+        "steps": 355263
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 960,
+        "errors": 0,
+        "steps": 355262
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1920,
+        "errors": 0,
+        "steps": 734992
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1920,
+        "errors": 0,
+        "steps": 734994
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1920,
+        "errors": 0,
+        "steps": 736856
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1920,
+        "errors": 0,
+        "steps": 736856
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1920,
+        "errors": 0,
+        "steps": 736853
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 240,
+        "errors": 0,
+        "steps": 68742
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 240,
+        "errors": 0,
+        "steps": 68744
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 240,
+        "errors": 0,
+        "steps": 68967
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 240,
+        "errors": 0,
+        "steps": 68968
+      },
+      {
+        "case": "fft",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 240,
+        "errors": 0,
+        "steps": 68967
+      },
+      {
+        "case": "fft_math",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 780,
+        "errors": 0,
+        "steps": 13996
+      },
+      {
+        "case": "granules",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1716,
+        "errors": 0,
+        "steps": 242865
+      },
+      {
+        "case": "high_product",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 3834,
+        "errors": 0,
+        "steps": 896672
+      },
+      {
+        "case": "interpolate",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 335,
+        "errors": 0,
+        "steps": 49868
+      },
+      {
+        "case": "mdct",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 368,
+        "errors": 0,
+        "steps": 254177
+      },
+      {
+        "case": "mdct",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 608,
+        "errors": 0,
+        "steps": 487547
+      },
+      {
+        "case": "mdct",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 1088,
+        "errors": 0,
+        "steps": 1064632
+      },
+      {
+        "case": "mdct",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 2048,
+        "errors": 0,
+        "steps": 2135870
+      },
+      {
+        "case": "multiply",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 2628,
+        "errors": 0,
+        "steps": 253491
+      },
+      {
+        "case": "nlsf",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 256,
+        "errors": 0,
+        "steps": 490810
+      },
+      {
+        "case": "pointers",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 17,
+        "errors": 0,
+        "steps": 164
+      },
+      {
+        "case": "range_decoder",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 6664,
+        "errors": 0,
+        "steps": 1624281
+      },
+      {
+        "case": "silk_math",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 293,
+        "errors": 0,
+        "steps": 94752
+      },
+      {
+        "case": "simple",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 495,
+        "errors": 0,
+        "steps": 5595
+      },
+      {
+        "case": "size_types",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 180,
+        "errors": 0,
+        "steps": 11595
+      },
+      {
+        "case": "sort",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 36,
+        "errors": 0,
+        "steps": 8080
+      },
+      {
+        "case": "stack",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 747,
+        "errors": 0,
+        "steps": 11753
+      },
+      {
+        "case": "table_words",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 23,
+        "errors": 0,
+        "steps": 233
+      },
+      {
+        "case": "word_memory",
+        "optimization": "-O2",
+        "completed": true,
+        "comparisons": 140,
+        "errors": 0,
+        "steps": 4948
+      }
+    ],
+    "comparisons": 48007,
+    "toolchain": {
+      "TEAK_CC1": "0ca871acddbc22d56a57e20979093e8ed19f1f9d5da7da62a963200c52868db6",
+      "TEAK_LLC": "29e42606c722453f522a7274b81901e751e2880cc8c60fddc8d708e789150667"
+    }
+  },
+  "decoder_results": {
+    "arm-opus-spills": {
+      "passed": true,
+      "files": 6,
+      "pcm_words": 92086,
+      "seeks": 25,
+      "loop_joins": 0,
+      "decode_calls": 306,
+      "resets": 34,
+      "allocations": 15,
+      "flushes": 315,
+      "invalidations": 305,
+      "delayed_init_ticks": 13542400
+    },
+    "arm-vorbis-spills": {
+      "passed": true,
+      "files": 4,
+      "pcm_words": 242759,
+      "seeks": 45,
+      "loop_joins": 12,
+      "decode_calls": 387,
+      "resets": 8,
+      "allocations": 11,
+      "flushes": 394,
+      "invalidations": 313,
+      "delayed_init_ticks": 82884096
+    },
+    "production-opus-spills": {
+      "passed": true,
+      "packets": 192,
+      "pcm_words": 207360,
+      "requests": 103798,
+      "cycles": 1263185408,
+      "audio_samples": 308393,
+      "fifo_empty_observations": 23314,
+      "aac_packets": 60,
+      "mp3_packets": 54
+    },
+    "production-vorbis-spills-vorbis_stereo": {
+      "passed": true,
+      "packets": 80,
+      "pcm_words": 114662,
+      "requests": 10427,
+      "cycles": 643510528,
+      "audio_samples": 157105,
+      "stack_words": 4172,
+      "aac_packets": 60,
+      "mp3_packets": 54,
+      "replayed_packets": 80,
+      "replayed_pcm_words": 114662
+    },
+    "arm-vorbis-spills-playback": {
+      "passed": true
+    },
+    "bank-spills": {
+      "passed": true
+    }
+  },
+  "rejected_optimization": "Omitting SV saves passed MIR tests but failed the first public Opus packet. SV remains preserved."
+}

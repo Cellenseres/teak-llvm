@@ -58,6 +58,7 @@ jobs:
           TEAK_LLC: ${{ github.workspace }}/build/bin/llc
         run: |
           python3 opendsp/tests/stack_flags.py
+          python3 opendsp/tests/wide_spills.py
           python3 opendsp/tests/run.py --case simple --label ci
           python3 opendsp/tests/run.py --case comparisons --label ci
           python3 opendsp/tests/run.py --case sort --label ci
@@ -121,6 +122,7 @@ jobs:
             opendsp/tests/build/*.s
             opendsp/tests/build/*.pcm
             opendsp/tests/build/stack-flags/
+            opendsp/tests/build/wide-spills/
       - name: Compiler binaries
         if: ${{ !cancelled() && steps.compiler.outcome == 'success' }}
         uses: actions/upload-artifact@v4

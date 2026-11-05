@@ -437,3 +437,18 @@ shifts. All 112 words match. MOD0 bits 2..4 are read-only in Teakra; their
 observed reset value is included in the reference. These tests use local
 compiler components and do not establish physical timing. See
 `opendsp/validation/quotient-20261026.json`.
+
+## Full accumulator spills
+
+Full 40-bit stack stores now move the frame pointer once, write the high,
+low and extension words consecutively, then restore it. SV and live status
+flags remain preserved. Ordinary 16-bit and 32-bit slots retain their paths.
+
+`python3 opendsp/tests/wide_spills.py` checks 1,728 cases and 20,736 words.
+It covers all four accumulators, near and distant frame offsets, signed
+40-bit extrema, both shift modes, live flags and live SV values. Adjacent
+slots, SP, R7 and MOD0 are checked as well. The same MIR uses 220,617
+emulator instructions instead of 223,785 with the previous backend.
+
+See `opendsp/validation/wide-spills-20261027.json` for compiler and decoder
+results. These are local emulator checks, not physical timing.

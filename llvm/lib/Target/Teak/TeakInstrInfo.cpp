@@ -609,6 +609,23 @@ bool TeakInstrInfo::expandPostRAPseudo(MachineInstr &MI) const
             signed short frameOffset = (signed short)MI.getOperand(2).getImm();
             if(keepFlags)
                 BuildMI(MBB, MI, DL, get(Teak::PUSH_ararpsttmod), Teak::STT0);
+            if (MI.hasOneMemOperand() && (*MI.memoperands_begin())->getSize() == 5) {
+                Register base = MI.getOperand(1).getReg();
+                BuildMI(MBB, MI, DL, get(Teak::PUSH_regnob16)).addReg(Teak::SV);
+                BuildMI(MBB, MI, DL, get(Teak::PUSH_abe)).addReg(teakGetAbEReg(srcReg));
+                BuildMI(MBB, MI, DL, get(Teak::POP_regnob16), Teak::SV);
+                makeRnRegDisplacement(MBB, MI, DL, base, frameOffset);
+                for (unsigned part : {hiReg, loReg})
+                    BuildMI(MBB, MI, DL, get(Teak::MOV_regnob16_memrn_postdec), base)
+                        .addReg(part, getKillRegState(MI.getOperand(0).isKill())).addReg(base);
+                BuildMI(MBB, MI, DL, get(Teak::MOV_regnob16_memrn)).addReg(Teak::SV).addReg(base);
+                makeRnRegDisplacement(MBB, MI, DL, base, -frameOffset + 2);
+                BuildMI(MBB, MI, DL, get(Teak::POP_regnob16), Teak::SV);
+                if (keepFlags)
+                    BuildMI(MBB, MI, DL, get(Teak::POP_ararpsttmod), Teak::STT0);
+                MBB.erase(MI);
+                return true;
+            }
             makeRnRegDisplacement(MBB, MI, DL, MI.getOperand(1).getReg(), frameOffset);
             if(loReg == Teak::A0L || loReg == Teak::A1L)
             {
@@ -630,17 +647,6 @@ bool TeakInstrInfo::expandPostRAPseudo(MachineInstr &MI) const
                     .addReg(loReg, getKillRegState(MI.getOperand(0).isKill()))
                     .addReg(MI.getOperand(1).getReg());
                 makeRnRegDisplacement(MBB, MI, DL, MI.getOperand(1).getReg(), -frameOffset + 1);
-            }
-            if (MI.hasOneMemOperand() && (*MI.memoperands_begin())->getSize() == 5) {
-                // Preserve the accumulator extension byte.
-                BuildMI(MBB, MI, DL, get(Teak::PUSH_regnob16)).addReg(Teak::SV);
-                BuildMI(MBB, MI, DL, get(Teak::PUSH_abe)).addReg(teakGetAbEReg(srcReg));
-                BuildMI(MBB, MI, DL, get(Teak::POP_regnob16), Teak::SV);
-                makeRnRegDisplacement(MBB, MI, DL, Teak::R7, frameOffset - 2);
-                BuildMI(MBB, MI, DL, get(Teak::MOV_regnob16_memrn))
-                    .addReg(Teak::SV).addReg(Teak::R7);
-                makeRnRegDisplacement(MBB, MI, DL, Teak::R7, -frameOffset + 2);
-                BuildMI(MBB, MI, DL, get(Teak::POP_regnob16), Teak::SV);
             }
             if(keepFlags)
                 BuildMI(MBB, MI, DL, get(Teak::POP_ararpsttmod), Teak::STT0);
