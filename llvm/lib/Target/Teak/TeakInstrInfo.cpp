@@ -23,6 +23,7 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TargetRegistry.h"
@@ -32,6 +33,12 @@
 #include "TeakGenInstrInfo.inc"
 
 using namespace llvm;
+
+// Without the extension byte, spills keep 32 bits and reload them
+// sign-extended. That is only correct where no spilled value relies on bits
+// 32-39, including zero-extended 32-bit values with bit 31 set.
+static cl::opt<bool> WideSpills("teak-spill40", cl::init(true),
+    cl::desc("Save the accumulator extension byte in spills"));
 
 // Pin the vtable to this file.
 void TeakInstrInfo::anchor() {}
@@ -376,10 +383,11 @@ void TeakInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
         DL = I->getDebugLoc();
     if(RC->hasSuperClassEq(&Teak::ABRegsRegClass)) {
         MachineFunction &MF = *MBB.getParent();
-        BuildMI(MBB, I, DL, get(Teak::STORE_REG_TO_STACK_PSEUDO_32))
+        MachineInstrBuilder Store = BuildMI(MBB, I, DL, get(Teak::STORE_REG_TO_STACK_PSEUDO_32))
             .addReg(SrcReg, getKillRegState(isKill))
-            .addFrameIndex(FrameIndex).addImm(0)
-            .addMemOperand(MF.getMachineMemOperand(
+            .addFrameIndex(FrameIndex).addImm(0);
+        if (WideSpills)
+            Store.addMemOperand(MF.getMachineMemOperand(
                 MachinePointerInfo::getFixedStack(MF, FrameIndex),
                 MachineMemOperand::MOStore, 5, MF.getFrameInfo().getObjectAlignment(FrameIndex)));
     }
@@ -437,11 +445,12 @@ void TeakInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
         DL = I->getDebugLoc();
     if(RC->hasSuperClassEq(&Teak::ABRegsRegClass)) {
         MachineFunction &MF = *MBB.getParent();
-        BuildMI(MBB, I, DL, get(Teak::LOAD_REG_FROM_STACK_PSEUDO_32_SEXT40), DestReg)
-        .addFrameIndex(FrameIndex).addImm(0)
-        .addMemOperand(MF.getMachineMemOperand(
-            MachinePointerInfo::getFixedStack(MF, FrameIndex),
-            MachineMemOperand::MOLoad, 5, MF.getFrameInfo().getObjectAlignment(FrameIndex)));
+        MachineInstrBuilder Load = BuildMI(MBB, I, DL, get(Teak::LOAD_REG_FROM_STACK_PSEUDO_32_SEXT40), DestReg)
+        .addFrameIndex(FrameIndex).addImm(0);
+        if (WideSpills)
+            Load.addMemOperand(MF.getMachineMemOperand(
+                MachinePointerInfo::getFixedStack(MF, FrameIndex),
+                MachineMemOperand::MOLoad, 5, MF.getFrameInfo().getObjectAlignment(FrameIndex)));
     }
     else
         BuildMI(MBB, I, DL, get(Teak::LOAD_REG_FROM_STACK_PSEUDO_16), DestReg)

@@ -13,6 +13,26 @@ OpenDSP's former build-time patches are ordinary commits here:
 New fixes follow those commits. This is still an experimental Teak compiler,
 not a claim of complete C support or working Vorbis/Opus DSP playback.
 
+## Spill width
+
+Accumulator spills save all 40 bits by default. Each one costs seven extra
+instructions: OpenDSP's unchanged MP3 `decoder.c` grows from 10,197 to 14,958
+instructions, and push/pop from 270 to 3,448. `-mllvm -teak-spill40=false`
+restores the earlier 32-bit store and sign-extending reload for a whole
+compilation unit. That unit then has 10,204 instructions and 270 push/pop.
+`opendsp/tests/spill_width.py` checks both settings with `TEAK_LLC`.
+
+Use `=false` only for code whose spilled values never rely on bits 32-39.
+Promoted 32-bit values are not enough: unsigned values with bit 31 set are kept
+zero-extended. Their masks (`0x00ffffffff`), unaligned 32-bit loads and the
+following logical shifts depend on that. Choosing narrow spills for functions
+without wider IR types passes the 40-bit tests, but fails `range_decoder` with
+7 wrong words. A per-value MIR analysis cannot recover the SelectionDAG's
+known-bits facts, for example for a 32-bit value assembled from two
+zero-extended loads. `division_vectors` (6,841 errors) and `silk_core`
+(1,651 errors) also fail with the unchanged backend. With `=false`, `multiply`
+returns 131 wrong words, `division` 164, `high_product` 1,640 and `calls` 24.
+
 ## Stack loads with live flags
 
 Signed 16-bit stack loads into A0 or A1 now restore saved STT0. Previously,
@@ -54,10 +74,10 @@ No runtime helper or multiplier state is required.
 The general wide-multiplication fallback uses six signed 15-bit partial
 products. The native test checks 2,628 result words across 16-, 32- and 40-bit
 boundary/random inputs, including signed 16-by-40-bit products.
-Accumulator spills now preserve all 40 bits, including the extension byte.
-Keeping the old spills produces 160 wrong words with the same unsaturated
-startup. Narrowed loads are disabled because their byte offsets address the
-wrong DSP word. The upstream energy, bandwidth-expansion and linear-log tests
+Accumulator spills now preserve all 40 bits by default, including the
+extension byte (see "Spill width"). Keeping the old spills produces 160 wrong
+words with the same unsaturated startup. Narrowed loads are disabled because
+their byte offsets address the wrong DSP word. The upstream energy, bandwidth-expansion and linear-log tests
 then match all 293 host-reference words; previously seven shift values differed.
 
 The standalone C tests disable both arithmetic and move saturation in MOD0.

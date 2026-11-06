@@ -59,6 +59,7 @@ jobs:
         run: |
           python3 opendsp/tests/stack_flags.py
           python3 opendsp/tests/wide_spills.py
+          python3 opendsp/tests/spill_width.py
           python3 opendsp/tests/run.py --case simple --label ci
           python3 opendsp/tests/run.py --case comparisons --label ci
           python3 opendsp/tests/run.py --case sort --label ci
